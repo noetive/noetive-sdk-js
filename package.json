@@ -1,0 +1,81 @@
+{
+  "name": "@noetive/sdk",
+  "version": "0.1.0",
+  "description": "Official TypeScript/JavaScript SDK for the Noetive platform. Currently includes Semantik (semantic publish/search/subscribe broker).",
+  "license": "Apache-2.0",
+  "author": {
+    "name": "Noetive",
+    "email": "support@noetive.io"
+  },
+  "homepage": "https://noetive.io",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/noetive/noetive-sdk-js.git"
+  },
+  "bugs": {
+    "url": "https://github.com/noetive/noetive-sdk-js/issues"
+  },
+  "keywords": [
+    "noetive",
+    "semantik",
+    "semantic-search",
+    "embeddings",
+    "vector-search",
+    "sse"
+  ],
+  "type": "module",
+  "main": "./dist/index.cjs",
+  "module": "./dist/index.js",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.js",
+      "require": "./dist/index.cjs"
+    },
+    "./semantik": {
+      "types": "./dist/semantik/index.d.ts",
+      "import": "./dist/semantik/index.js",
+      "require": "./dist/semantik/index.cjs"
+    },
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "dist",
+    "README.md",
+    "SECURITY.md",
+    "LICENSE"
+  ],
+  "engines": {
+    "node": ">=18"
+  },
+  "publishConfig": {
+    "access": "public"
+  },
+  "sideEffects": false,
+  "scripts": {
+    "build": "tsup",
+    "typecheck": "tsc --noEmit",
+    "lint": "biome check src test examples tools",
+    "format": "biome format --write src test examples tools",
+    "test": "vitest run test/unit",
+    "test:watch": "vitest test/unit",
+    "test:integration": "vitest run test/integration",
+    "test:all": "vitest run",
+    "coverage": "vitest run test/unit --coverage",
+    "recorder": "tsx tools/recorder.ts",
+    "example": "tsx",
+    "prepublishOnly": "npm run typecheck && npm run lint && npm run test && npm run build"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^1.9.4",
+    "@types/node": "^20.14.0",
+    "@vitest/coverage-v8": "^2.1.0",
+    "fast-check": "^3.23.0",
+    "msw": "^2.6.0",
+    "tsup": "^8.3.0",
+    "tsx": "^4.19.0",
+    "typescript": "^5.6.0",
+    "vitest": "^2.1.0"
+  }
+}
