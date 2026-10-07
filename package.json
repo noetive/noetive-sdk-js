@@ -1,7 +1,7 @@
 {
   "name": "@noetive/sdk",
   "version": "0.1.0",
-  "description": "Official TypeScript/JavaScript SDK for the Noetive platform. Currently includes Semantik (semantic publish/search/subscribe broker).",
+  "description": "Official TypeScript/JavaScript SDK for the Noetive platform: Semantik (semantic publish, search and subscribe) and Bud (managed mail for agents).",
   "license": "Apache-2.0",
   "author": {
     "name": "Noetive",
@@ -18,6 +18,8 @@
   "keywords": [
     "noetive",
     "semantik",
+    "bud",
+    "agents",
     "semantic-search",
     "embeddings",
     "vector-search",
@@ -37,6 +39,11 @@
       "types": "./dist/semantik/index.d.ts",
       "import": "./dist/semantik/index.js",
       "require": "./dist/semantik/index.cjs"
+    },
+    "./bud": {
+      "types": "./dist/bud/index.d.ts",
+      "import": "./dist/bud/index.js",
+      "require": "./dist/bud/index.cjs"
     },
     "./package.json": "./package.json"
   },

@@ -45,8 +45,8 @@ including:
 - Dependency confusion, typosquatting, or supply-chain concerns on the
   published package.
 
-Vulnerabilities in the Noetive Semantik service itself (the backing API at
-`https://semantik.noetive.io`) should be reported to the same address; they
+Vulnerabilities in the Noetive services themselves (Semantik at
+`https://semantik.noetive.io`, Bud at `https://bud.noetive.io`) should be reported to the same address; they
 will be forwarded to the service team.
 
 ## Hardening guidance for SDK users
@@ -76,6 +76,15 @@ will be forwarded to the service team.
   cannot exhaust SDK memory.
 - SSE frames are capped at 64 KiB; oversize frames surface as `MalformedSseError`
   rather than growing without bound.
+  The cap counts bytes and covers a line still being read, so a stream that
+  never ends a line cannot grow memory either.
+- The Bud client (`@noetive/sdk/bud`) redacts its credential the same way,
+  never follows a redirect (a 3xx cannot carry the credential to a host the
+  caller did not name), caps responses at 32 MiB and stream frames at 4 MiB,
+  and retries only a connection that failed before any response. A send or
+  update is retried only when it carries an `idempotency_key`, and no retry
+  policy can widen that. A forwarding client holds no key at all and sends only
+  the credential given for each call.
 - A server-supplied `retry_after_ms` hint is capped at one hour to defend
   against a misbehaving or malicious server parking a retrying caller.
 - The default transport refuses gzip compression on the subscribe stream so a

@@ -6,9 +6,12 @@
  * frame on a blank line, and accepts any of `\n`, `\r\n`, `\r` as the line
  * separator. Unknown fields are ignored per the spec.
  *
- * Per-frame size is capped at `MAX_FRAME_BYTES`; a larger frame produces a
- * `MalformedSseError` so a misbehaving server cannot cause unbounded memory
- * growth in the SDK.
+ * Per-frame size is capped at `MAX_FRAME_BYTES` unless the caller passes its
+ * own bound (a stream whose frames batch many events, such as Bud's watch,
+ * needs more); a larger frame produces a `MalformedSseError` so a misbehaving
+ * server cannot cause unbounded memory growth in the SDK. The cap counts UTF-8
+ * bytes, and covers a line still waiting for its terminator, so a stream that
+ * never sends a line break is refused rather than buffered.
  *
  * Usage:
  *
@@ -34,15 +37,22 @@ export interface SseFrame {
  * The iterator yields one frame per emitted event; it returns cleanly when the
  * server closes the stream. To stop early, call `cancel()` on the underlying
  * reader (e.g. via the SubscribeStream's `close()`).
+ *
+ * `maxFrameBytes` bounds one frame; it defaults to `MAX_FRAME_BYTES`.
  */
 export async function* parseSse(
   source: ReadableStream<Uint8Array>,
+  maxFrameBytes: number = MAX_FRAME_BYTES,
 ): AsyncIterableIterator<SseFrame> {
   const reader = source.getReader();
   const decoder = new TextDecoder("utf-8");
-  // Pending bytes form an incomplete final line. Pending event/data
-  // accumulate the current frame across lines until a blank line lands.
-  let pending = "";
+  // `tail` holds an incomplete final line, in pieces, and `tailBytes` its
+  // UTF-8 length; `afterCR` says the last chunk ended on a CR whose LF may
+  // open the next. Event/data accumulate the current frame across lines
+  // until a blank line lands.
+  let tail: string[] = [];
+  let tailBytes = 0;
+  let afterCR = false;
   let event = "";
   let dataParts: string[] = [];
   let size = 0;
@@ -71,33 +81,57 @@ export async function* parseSse(
     } else if (parsed.field === "data") {
       dataParts.push(parsed.value);
     }
-    size += line.length;
-    if (size > MAX_FRAME_BYTES) {
-      throw new MalformedSseError(`SSE frame exceeds ${MAX_FRAME_BYTES} bytes`);
-    }
+    size += utf8ByteLength(line);
+    if (size > maxFrameBytes) throw frameTooLarge();
   };
+
+  const frameTooLarge = () => new MalformedSseError(`SSE frame exceeds ${maxFrameBytes} bytes`);
 
   try {
     while (true) {
       const { value, done } = await reader.read();
       if (done) {
         // Drain any pending line (no trailing newline).
-        if (pending.length > 0) {
-          applyLine(pending);
-          pending = "";
+        if (tail.length > 0) {
+          applyLine(tail.join(""));
+          tail = [];
         }
         const f = emit();
         if (f) yield f;
         return;
       }
 
-      pending += decoder.decode(value, { stream: true });
-
-      while (true) {
-        const idx = findLineBreak(pending);
-        if (idx === null) break;
-        const line = pending.slice(0, idx.lineEnd);
-        pending = pending.slice(idx.nextStart);
+      // Only the new text is scanned: the unterminated tail is kept as pieces
+      // with a running byte count and joined once, when its line ends, so a
+      // long line arriving in small chunks costs linear time rather than a
+      // rescan of everything so far on every chunk.
+      const text = decoder.decode(value, { stream: true });
+      let pos = 0;
+      if (afterCR && text.length > 0) {
+        // A CR ended the previous chunk and its line; a LF here is its pair.
+        afterCR = false;
+        if (text.charCodeAt(0) === 0x0a) pos = 1;
+      }
+      while (pos < text.length) {
+        const brk = nextLineBreak(text, pos);
+        if (brk === -1) {
+          tail.push(text.slice(pos));
+          tailBytes += utf8ByteLength(text, pos, text.length);
+          break;
+        }
+        const line = tail.length > 0 ? tail.join("") + text.slice(pos, brk) : text.slice(pos, brk);
+        tail = [];
+        tailBytes = 0;
+        if (text.charCodeAt(brk) === 0x0d) {
+          if (brk + 1 < text.length) {
+            pos = text.charCodeAt(brk + 1) === 0x0a ? brk + 2 : brk + 1;
+          } else {
+            afterCR = true;
+            pos = brk + 1;
+          }
+        } else {
+          pos = brk + 1;
+        }
 
         if (line.length === 0) {
           const f = emit();
@@ -106,6 +140,11 @@ export async function* parseSse(
         }
         applyLine(line);
       }
+
+      // The unterminated tail belongs to the frame too. Checked here so a
+      // server that never sends a line break cannot grow it past the bound:
+      // memory stays within one frame plus one chunk.
+      if (size + tailBytes > maxFrameBytes) throw frameTooLarge();
     }
   } finally {
     // Surface cancellation to the upstream so connection pools release.
@@ -115,6 +154,27 @@ export async function* parseSse(
       // releaseLock throws if the stream is locked from another reader; ignore.
     }
   }
+}
+
+/**
+ * The UTF-8 encoded length of `s` from `from` to `to`, without encoding it. A
+ * lone surrogate counts as the three bytes of the U+FFFD that replaces it.
+ */
+function utf8ByteLength(s: string, from = 0, to = s.length): number {
+  let bytes = 0;
+  for (let i = from; i < to; i++) {
+    const c = s.charCodeAt(i);
+    if (c < 0x80) bytes += 1;
+    else if (c < 0x800) bytes += 2;
+    else if (c >= 0xd800 && c <= 0xdbff && i + 1 < to) {
+      const next = s.charCodeAt(i + 1);
+      if (next >= 0xdc00 && next <= 0xdfff) {
+        bytes += 4;
+        i++;
+      } else bytes += 3;
+    } else bytes += 3;
+  }
+  return bytes;
 }
 
 /**
@@ -136,27 +196,13 @@ function parseLine(line: string): { field: string; value: string } | null {
 }
 
 /**
- * Find the next line break in `s`. Returns the position of the *content*
- * end (exclusive) and the position where the next line starts. Recognises
- * `\n`, `\r\n`, and bare `\r`. Returns `null` when no terminator is present yet.
+ * The index of the next `\n` or `\r` in `s` at or after `from`, or -1. The
+ * caller treats `\r\n` as one terminator, including across chunks.
  */
-function findLineBreak(s: string): { lineEnd: number; nextStart: number } | null {
-  for (let i = 0; i < s.length; i++) {
+function nextLineBreak(s: string, from: number): number {
+  for (let i = from; i < s.length; i++) {
     const c = s.charCodeAt(i);
-    if (c === 0x0a) {
-      return { lineEnd: i, nextStart: i + 1 };
-    }
-    if (c === 0x0d) {
-      if (i + 1 < s.length && s.charCodeAt(i + 1) === 0x0a) {
-        return { lineEnd: i, nextStart: i + 2 };
-      }
-      // Bare CR. If we're not at the buffer tail we know it's a standalone CR;
-      // if we are, we need more bytes to disambiguate from \r\n — defer.
-      if (i + 1 < s.length) {
-        return { lineEnd: i, nextStart: i + 1 };
-      }
-      return null;
-    }
+    if (c === 0x0a || c === 0x0d) return i;
   }
-  return null;
+  return -1;
 }
