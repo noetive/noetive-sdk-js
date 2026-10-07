@@ -164,7 +164,7 @@ describe.skipIf(!hasBudKey())("Bud (integration)", () => {
   });
 
   it("refusals carry what to do next", async (ctx) => {
-    const missing = await c.describeMessage({ id: "message_01aaaaaaaaaaaaaaaaaaaaaaaaaa" }, call());
+    const missing = await c.describeMessage({ id: "message_01aaaaaaaaaaaaaaaaaaaaaaaa" }, call());
     refused(
       "describeMessage of a message that does not exist",
       missing.error,
