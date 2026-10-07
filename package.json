@@ -1,6 +1,6 @@
 {
   "name": "@noetive/sdk",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Official TypeScript/JavaScript SDK for the Noetive platform: Semantik (semantic publish, search and subscribe) and Bud (managed mail for agents).",
   "license": "Apache-2.0",
   "author": {
@@ -90,7 +90,7 @@
     "format": "biome format --write src test examples tools",
     "test": "vitest run test/unit",
     "test:watch": "vitest test/unit",
-    "test:integration": "vitest run test/integration",
+    "test:integration": "vitest run test/integration --no-file-parallelism",
     "test:all": "vitest run",
     "coverage": "vitest run test/unit --coverage",
     "recorder": "tsx tools/recorder.ts",
