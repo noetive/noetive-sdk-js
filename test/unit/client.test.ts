@@ -71,7 +71,9 @@ describe("SemantikClient — preflight via methods", () => {
       apiKey: "keyu_test",
       fetch: vi.fn() as unknown as typeof fetch,
     });
-    await expect(c.search({ query: "" })).rejects.toBeInstanceOf(InvalidRequestError);
+    await expect(
+      c.search({ query: "", namespace: "global", model: "m", dimensions: 1 }),
+    ).rejects.toBeInstanceOf(InvalidRequestError);
   });
 
   it("subscribe rejects empty query", async () => {
@@ -79,7 +81,9 @@ describe("SemantikClient — preflight via methods", () => {
       apiKey: "keyu_test",
       fetch: vi.fn() as unknown as typeof fetch,
     });
-    await expect(c.subscribe({ query: "" })).rejects.toBeInstanceOf(InvalidRequestError);
+    await expect(
+      c.subscribe({ query: "", namespace: "global", model: "m", dimensions: 1 }),
+    ).rejects.toBeInstanceOf(InvalidRequestError);
   });
 
   it("lint rejects empty query", async () => {
@@ -90,10 +94,41 @@ describe("SemantikClient — preflight via methods", () => {
     await expect(c.lint({ query: "" })).rejects.toBeInstanceOf(InvalidRequestError);
   });
 
-  it("applies global namespace defaults on search", async () => {
+  // The SDK no longer defaults the targeting tuple. A caller who forgets
+  // `namespace` must be rejected before any request is sent — defaulting to a
+  // shared namespace would risk routing sensitive data into a space they never
+  // named. The fetch mock asserts no request leaves the SDK.
+  it("publish rejects a missing namespace without sending a request", async () => {
+    const fetchMock = vi.fn() as unknown as typeof fetch;
+    const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
+    await expect(
+      c.publish({ items: [{ text: "hi" }], model: "m", dimensions: 1 } as never),
+    ).rejects.toBeInstanceOf(InvalidRequestError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("search rejects a missing namespace without sending a request", async () => {
+    const fetchMock = vi.fn() as unknown as typeof fetch;
+    const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
+    await expect(
+      c.search({ query: "anything", model: "m", dimensions: 1 } as never),
+    ).rejects.toBeInstanceOf(InvalidRequestError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("subscribe rejects a missing namespace without sending a request", async () => {
+    const fetchMock = vi.fn() as unknown as typeof fetch;
+    const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
+    await expect(
+      c.subscribe({ query: "anything", model: "m", dimensions: 1 } as never),
+    ).rejects.toBeInstanceOf(InvalidRequestError);
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("sends the caller's targeting tuple verbatim — no substitution", async () => {
     const fetchMock = vi.fn(async (_url: any, init: any) => {
       const body = JSON.parse(new TextDecoder().decode(init.body));
-      expect(body.namespace).toBe("global");
+      expect(body.namespace).toBe("research-papers");
       expect(body.model).toBe("Qwen3-Embedding-4B");
       expect(body.dimensions).toBe(1024);
       return new Response('{"results":[]}', {
@@ -102,7 +137,12 @@ describe("SemantikClient — preflight via methods", () => {
       });
     }) as unknown as typeof fetch;
     const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
-    await c.search({ query: "anything" });
+    await c.search({
+      query: "anything",
+      namespace: "research-papers",
+      model: "Qwen3-Embedding-4B",
+      dimensions: 1024,
+    });
     expect(fetchMock).toHaveBeenCalled();
   });
 });

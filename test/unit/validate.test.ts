@@ -22,20 +22,36 @@ describe("validateApiKey", () => {
 describe("validatePublishRequest", () => {
   const base = {
     items: [{ text: "hello" }],
+    namespace: "global",
     model: "Qwen3-Embedding-4B",
     dimensions: 1024,
   };
 
-  it("accepts a minimal text publish", () => {
+  it("accepts a fully-specified text publish", () => {
     expect(() => validatePublishRequest({ ...base })).not.toThrow();
+  });
+
+  // The SDK applies no default to namespace/model/dimensions. An unset field
+  // is a fail-fast preflight error, never a silent fall-back to a shared
+  // namespace — defaulting `namespace` would let a forgotten field route
+  // sensitive data into a space the caller never intended.
+  it("rejects missing namespace", () => {
+    expect(() => validatePublishRequest({ ...base, namespace: undefined })).toThrow(
+      InvalidRequestError,
+    );
+    expect(() => validatePublishRequest({ ...base, namespace: "" })).toThrow(InvalidRequestError);
   });
 
   it("rejects empty model", () => {
     expect(() => validatePublishRequest({ ...base, model: "" })).toThrow(InvalidRequestError);
+    expect(() => validatePublishRequest({ ...base, model: undefined })).toThrow(
+      InvalidRequestError,
+    );
   });
 
-  it("rejects 0 or >4096 dimensions", () => {
+  it("rejects 0, missing, or >4096 dimensions", () => {
     expect(() => validatePublishRequest({ ...base, dimensions: 0 })).toThrow();
+    expect(() => validatePublishRequest({ ...base, dimensions: undefined })).toThrow();
     expect(() => validatePublishRequest({ ...base, dimensions: 4097 })).toThrow();
   });
 
@@ -118,13 +134,24 @@ describe("validatePublishRequest", () => {
 });
 
 describe("validateSearchRequest", () => {
-  const base = { query: "hello", model: "Qwen3-Embedding-4B", dimensions: 1024 };
+  const base = {
+    query: "hello",
+    namespace: "global",
+    model: "Qwen3-Embedding-4B",
+    dimensions: 1024,
+  };
 
-  it("accepts a minimal request", () => {
+  it("accepts a fully-specified request", () => {
     expect(() => validateSearchRequest({ ...base })).not.toThrow();
   });
   it("rejects empty query", () => {
     expect(() => validateSearchRequest({ ...base, query: "" })).toThrow();
+  });
+  it("rejects missing namespace, model, or dimensions", () => {
+    expect(() => validateSearchRequest({ ...base, namespace: undefined })).toThrow();
+    expect(() => validateSearchRequest({ ...base, namespace: "" })).toThrow();
+    expect(() => validateSearchRequest({ ...base, model: undefined })).toThrow();
+    expect(() => validateSearchRequest({ ...base, dimensions: 0 })).toThrow();
   });
   it("rejects negative limit", () => {
     expect(() => validateSearchRequest({ ...base, limit: -1 })).toThrow();
@@ -132,11 +159,19 @@ describe("validateSearchRequest", () => {
 });
 
 describe("validateSubscribeRequest", () => {
-  it("accepts a minimal request", () => {
-    expect(() => validateSubscribeRequest({ query: "x", model: "m", dimensions: 1 })).not.toThrow();
+  const base = { query: "x", namespace: "global", model: "m", dimensions: 1 };
+
+  it("accepts a fully-specified request", () => {
+    expect(() => validateSubscribeRequest({ ...base })).not.toThrow();
   });
   it("rejects empty query", () => {
-    expect(() => validateSubscribeRequest({ query: "", model: "m", dimensions: 1 })).toThrow();
+    expect(() => validateSubscribeRequest({ ...base, query: "" })).toThrow();
+  });
+  it("rejects missing namespace, model, or dimensions", () => {
+    expect(() => validateSubscribeRequest({ ...base, namespace: undefined })).toThrow();
+    expect(() => validateSubscribeRequest({ ...base, namespace: "" })).toThrow();
+    expect(() => validateSubscribeRequest({ ...base, model: undefined })).toThrow();
+    expect(() => validateSubscribeRequest({ ...base, dimensions: 0 })).toThrow();
   });
 });
 

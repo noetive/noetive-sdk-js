@@ -24,8 +24,12 @@
 
 import { randomBytes } from "node:crypto";
 import process from "node:process";
-import { DEFAULT_DIMENSIONS, DEFAULT_MODEL } from "../src/semantik/index.js";
 import { buildUserAgent } from "../src/userAgent.js";
+
+// The SDK does not default the targeting tuple, so this recorder names the
+// `global` namespace's model and dimensions explicitly for its fixtures.
+const RECORD_MODEL = "Qwen3-Embedding-4B";
+const RECORD_DIMENSIONS = 1024;
 
 const args = process.argv.slice(2);
 if (args.length === 0 || args[0] === "-h" || args[0] === "--help") {
@@ -60,22 +64,22 @@ switch (cmd) {
       body: {
         items: [{ text: rest.join(" ") || "recorder text message" }],
         namespace: "global",
-        model: DEFAULT_MODEL,
-        dimensions: DEFAULT_DIMENSIONS,
+        model: RECORD_MODEL,
+        dimensions: RECORD_DIMENSIONS,
         idempotency_key: `recorder-${randomBytes(8).toString("hex")}`,
       },
     });
     break;
   case "publish-vector": {
-    const vector = Array.from({ length: DEFAULT_DIMENSIONS }, (_, i) => (i % 100) / 100);
+    const vector = Array.from({ length: RECORD_DIMENSIONS }, (_, i) => (i % 100) / 100);
     await recordJson({
       path: "/v1/publish",
       auth: true,
       body: {
         items: [{ vector }],
         namespace: "global",
-        model: DEFAULT_MODEL,
-        dimensions: DEFAULT_DIMENSIONS,
+        model: RECORD_MODEL,
+        dimensions: RECORD_DIMENSIONS,
         idempotency_key: `recorder-${randomBytes(8).toString("hex")}`,
       },
     });
@@ -88,8 +92,8 @@ switch (cmd) {
       body: {
         query: rest.join(" ") || 'MATCH DISTANCE("transformer") WITHIN 0.6 LIMIT 5',
         namespace: "global",
-        model: DEFAULT_MODEL,
-        dimensions: DEFAULT_DIMENSIONS,
+        model: RECORD_MODEL,
+        dimensions: RECORD_DIMENSIONS,
       },
     });
     break;
@@ -101,8 +105,8 @@ switch (cmd) {
       body: {
         query,
         namespace: "global",
-        model: DEFAULT_MODEL,
-        dimensions: DEFAULT_DIMENSIONS,
+        model: RECORD_MODEL,
+        dimensions: RECORD_DIMENSIONS,
       },
       maxEvents: Number.isFinite(max) ? max : 3,
     });

@@ -160,21 +160,6 @@ describe.skipIf(!hasApiKey())("Publish (integration)", () => {
     expect(res.seq).toBeGreaterThan(0);
   });
 
-  it("infers global defaults when namespace/model/dimensions are omitted", async () => {
-    // Spec defaults: namespace=global, model=Qwen3-Embedding-4B, dimensions=1024.
-    // The SDK fills these in pre-flight. End-to-end check: the publish must
-    // succeed without the caller specifying them.
-    const c = newClient();
-    const res = await c.publish(
-      {
-        items: [{ text: "defaults inference check" }],
-        idempotency_key: newIdempotencyKey(),
-      },
-      { readTimeoutMs: REQUEST_TIMEOUT_MS },
-    );
-    expect(res.message_id.length).toBeGreaterThan(0);
-  });
-
   it("surfaces unauthorized for a bad bearer token", async () => {
     const bad = new SemantikClient({
       apiKey: "keyu_00000000000000000000000000000000000000000000",

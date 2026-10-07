@@ -20,9 +20,14 @@ import {
 const client = new Client();
 
 try {
-  // Force a server-side invalid_request: vector length ≠ dimensions.
+  // Force an invalid_request: vector length ≠ dimensions. namespace, model,
+  // and dimensions are all required — the SDK never defaults them — so they are
+  // set explicitly here; the deliberate mistake is the 3-element vector against
+  // dimensions=1024, which the SDK catches at preflight.
   await client.semantik.publish({
     items: [{ vector: [1, 2, 3] }],
+    namespace: "global",
+    model: "Qwen3-Embedding-4B",
     dimensions: 1024,
   });
 } catch (err) {

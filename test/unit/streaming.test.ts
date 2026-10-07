@@ -25,6 +25,16 @@ function jsonResponse(body: unknown, init: ResponseInit = {}): Response {
   });
 }
 
+// A fully-specified subscribe request. These tests exercise the SSE handshake
+// and stream lifecycle, not targeting validation, so they always pass the
+// required namespace/model/dimensions tuple — the SDK no longer defaults it.
+const SUB_REQ = {
+  query: "*",
+  namespace: "global",
+  model: "Qwen3-Embedding-4B",
+  dimensions: 1024,
+} as const;
+
 describe("subscribe — handshake", () => {
   it("captures subscription_id and yields match events", async () => {
     const wire =
@@ -35,7 +45,7 @@ describe("subscribe — handshake", () => {
     const fetchMock = vi.fn(async () => sseResponse(wire)) as unknown as typeof fetch;
     const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
 
-    const stream = await c.subscribe({ query: "*" });
+    const stream = await c.subscribe({ ...SUB_REQ });
     expect(stream.subscriptionId).toBe("sub_42");
 
     const matches: { message_id: string; score: number }[] = [];
@@ -51,10 +61,10 @@ describe("subscribe — handshake", () => {
       async () => new Response("hi", { status: 200, headers: { "content-type": "text/plain" } }),
     ) as unknown as typeof fetch;
     const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
-    await expect(c.subscribe({ query: "*" })).rejects.toBeInstanceOf(SubscribeSetupError);
+    await expect(c.subscribe({ ...SUB_REQ })).rejects.toBeInstanceOf(SubscribeSetupError);
     // And the wrapped cause carries the MalformedSseError code through.
     try {
-      await c.subscribe({ query: "*" });
+      await c.subscribe({ ...SUB_REQ });
     } catch (e) {
       expect(e).toBeInstanceOf(NoetiveError);
       expect((e as NoetiveError).code).toBe(ErrorCodes.MalformedSse);
@@ -65,7 +75,7 @@ describe("subscribe — handshake", () => {
     const wire = `event: match\ndata: {"message_id":"x","score":0.1}\n\n`;
     const fetchMock = vi.fn(async () => sseResponse(wire)) as unknown as typeof fetch;
     const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
-    await expect(c.subscribe({ query: "*" })).rejects.toBeInstanceOf(SubscribeSetupError);
+    await expect(c.subscribe({ ...SUB_REQ })).rejects.toBeInstanceOf(SubscribeSetupError);
   });
 
   it("close() is idempotent", async () => {
@@ -74,7 +84,7 @@ describe("subscribe — handshake", () => {
       `event: match\ndata: {"message_id":"m","score":0.5}\n\n`;
     const fetchMock = vi.fn(async () => sseResponse(wire)) as unknown as typeof fetch;
     const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
-    const stream = await c.subscribe({ query: "*" });
+    const stream = await c.subscribe({ ...SUB_REQ });
     await stream.close();
     await stream.close();
     await stream.close();
@@ -87,7 +97,7 @@ describe("subscribe — handshake", () => {
       'event: match\ndata: {"message_id":"m","score":0.5}\n\n';
     const fetchMock = vi.fn(async () => sseResponse(wire)) as unknown as typeof fetch;
     const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
-    const stream = await c.subscribe({ query: "*" });
+    const stream = await c.subscribe({ ...SUB_REQ });
     const got: unknown[] = [];
     for await (const m of stream) got.push(m);
     expect(got).toEqual([{ message_id: "m", score: 0.5 }]);
@@ -113,7 +123,7 @@ describe("A1: subscribe handshake retry", () => {
       fetch: fetchMock,
       retryPolicy: new BackoffSchedulePolicy({ schedule: [1, 1, 1, 1], maxAttempts: 5 }),
     });
-    const stream = await c.subscribe({ query: "*" });
+    const stream = await c.subscribe({ ...SUB_REQ });
     expect(stream.subscriptionId).toBe("sub_ok");
     expect(fetchMock).toHaveBeenCalledTimes(3);
     await stream.close();
@@ -133,7 +143,7 @@ describe("A1: subscribe handshake retry", () => {
       fetch: fetchMock,
       retryPolicy: new BackoffSchedulePolicy({ schedule: [1, 1, 1, 1], maxAttempts: 5 }),
     });
-    const stream = await c.subscribe({ query: "*" });
+    const stream = await c.subscribe({ ...SUB_REQ });
     expect(stream.subscriptionId).toBe("sub_x");
 
     let caught: unknown;
@@ -167,7 +177,7 @@ describe("B1: setup vs stream error split", () => {
     const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
     let caught: unknown;
     try {
-      await c.subscribe({ query: "*" });
+      await c.subscribe({ ...SUB_REQ });
     } catch (e) {
       caught = e;
     }
@@ -187,7 +197,7 @@ describe("B1: setup vs stream error split", () => {
       `event: subscribed\ndata: {"subscription_id":"s"}\n\n` + "event: match\ndata: not-json\n\n";
     const fetchMock = vi.fn(async () => sseResponse(wire)) as unknown as typeof fetch;
     const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
-    const stream = await c.subscribe({ query: "*" });
+    const stream = await c.subscribe({ ...SUB_REQ });
     let caught: unknown;
     try {
       for await (const _m of stream) {

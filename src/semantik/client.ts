@@ -16,7 +16,6 @@ import {
   MAX_PUBLISH_BODY_BYTES,
   MAX_SEARCH_BODY_BYTES,
   MAX_SUBSCRIBE_BODY_BYTES,
-  applyNamespaceDefaults,
 } from "./defaults.js";
 import type {
   LintRequest,
@@ -117,28 +116,37 @@ export class SemantikClient {
   /**
    * Ingest a single message into the namespace.
    *
+   * `namespace`, `model`, and `dimensions` are required — the SDK applies no
+   * default. Omitting any of them is a fail-fast preflight error, never a
+   * silent fall-back to a shared namespace: defaulting `namespace` would let a
+   * forgotten field route sensitive data into a space the caller never
+   * intended.
+   *
    * Pair with `idempotency_key` if the caller is using the default retry
    * policy — retrying a publish without a key risks duplicate delivery.
    */
   async publish(req: PublishRequest, options: RequestOptions = {}): Promise<PublishResponse> {
-    const withDefaults = applyNamespaceDefaults({ ...req });
-    validatePublishRequest(withDefaults);
+    validatePublishRequest(req);
     return this.transport.doJson<PublishRequest, PublishResponse>({
       path: PATH_PUBLISH,
-      body: withDefaults,
+      body: req,
       auth: "bearer",
       maxBodyBytes: MAX_PUBLISH_BODY_BYTES,
       options,
     });
   }
 
-  /** Run a SemQL query and return the ranked matches. */
+  /**
+   * Run a SemQL query and return the ranked matches.
+   *
+   * `namespace`, `model`, and `dimensions` are required; see `publish` for why
+   * the SDK refuses to default them.
+   */
   async search(req: SearchRequest, options: RequestOptions = {}): Promise<SearchResponse> {
-    const withDefaults = applyNamespaceDefaults({ ...req });
-    validateSearchRequest(withDefaults);
+    validateSearchRequest(req);
     return this.transport.doJson<SearchRequest, SearchResponse>({
       path: PATH_SEARCH,
-      body: withDefaults,
+      body: req,
       auth: "bearer",
       maxBodyBytes: MAX_SEARCH_BODY_BYTES,
       options,
@@ -155,9 +163,8 @@ export class SemantikClient {
    * propagate to the consumer through the iterator throwing.
    */
   async subscribe(req: SubscribeRequest, options: RequestOptions = {}): Promise<SubscribeStream> {
-    const withDefaults = applyNamespaceDefaults({ ...req });
-    validateSubscribeRequest(withDefaults);
-    return openSubscribeStream(this.transport, PATH_SUBSCRIBE, withDefaults, {
+    validateSubscribeRequest(req);
+    return openSubscribeStream(this.transport, PATH_SUBSCRIBE, req, {
       maxBodyBytes: MAX_SUBSCRIBE_BODY_BYTES,
       requestOptions: options,
     });

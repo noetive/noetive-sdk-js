@@ -5,8 +5,9 @@ import {
   AuthenticationError,
   BackpressureError,
   InvalidRequestError,
-  MethodNotAllowedError,
   MeteringUnavailableError,
+  MethodNotAllowedError,
+  ModelNotProvisionedError,
   NamespaceDisabledError,
   NamespaceUnavailableError,
   RateLimitError,
@@ -52,15 +53,11 @@ describe("BackoffSchedulePolicy.delayFor — retryable classification", () => {
   });
 
   it("retries NamespaceUnavailableError (503 family)", () => {
-    expect(
-      policy.delayFor(new NamespaceUnavailableError("x", { httpStatus: 503 }), 1),
-    ).toBe(100);
+    expect(policy.delayFor(new NamespaceUnavailableError("x", { httpStatus: 503 }), 1)).toBe(100);
   });
 
   it("retries MeteringUnavailableError (503 family)", () => {
-    expect(
-      policy.delayFor(new MeteringUnavailableError("x", { httpStatus: 503 }), 1),
-    ).toBe(100);
+    expect(policy.delayFor(new MeteringUnavailableError("x", { httpStatus: 503 }), 1)).toBe(100);
   });
 
   it("does NOT retry NamespaceDisabledError (403 terminal)", () => {
@@ -81,10 +78,60 @@ describe("BackoffSchedulePolicy.delayFor — retryable classification", () => {
   it("does NOT retry MethodNotAllowedError (405 terminal)", () => {
     // 405 indicates a client-side or proxy bug. The SDK only sends POST, so
     // a 405 means something else has gone wrong; retrying just amplifies it.
+    expect(policy.delayFor(new MethodNotAllowedError("nope", { httpStatus: 405 }), 1)).toBeNull();
+  });
+});
+
+// model_not_provisioned is returned both while a pairing is still
+// becoming ready and for one that will never exist. The retry hint is
+// the only thing separating them, so pin both sides of the gate.
+describe("BackoffSchedulePolicy.delayFor — model_not_provisioned hint gate", () => {
+  const policy = new BackoffSchedulePolicy();
+
+  it("does NOT retry without a hint", () => {
     expect(
-      policy.delayFor(new MethodNotAllowedError("nope", { httpStatus: 405 }), 1),
+      policy.delayFor(new ModelNotProvisionedError("mismatch", { httpStatus: 400 }), 1),
     ).toBeNull();
   });
+
+  it("retries at the server's hint when one is present", () => {
+    expect(
+      policy.delayFor(
+        new ModelNotProvisionedError("warming", { httpStatus: 400, retryAfterMs: 2000 }),
+        1,
+      ),
+    ).toBe(2000);
+  });
+
+  it("never falls back to the backoff schedule on later attempts", () => {
+    // A hinted error must keep using the hint; drifting onto the table
+    // would erase the distinction the hint encodes.
+    const err = new ModelNotProvisionedError("warming", {
+      httpStatus: 400,
+      retryAfterMs: 2000,
+    });
+    expect(policy.delayFor(err, 3)).toBe(2000);
+  });
+
+  it("still respects maxAttempts", () => {
+    const bounded = new BackoffSchedulePolicy({ maxAttempts: 2 });
+    const err = new ModelNotProvisionedError("warming", {
+      httpStatus: 400,
+      retryAfterMs: 500,
+    });
+    expect(bounded.delayFor(err, 1)).toBe(500);
+    expect(bounded.delayFor(err, 2)).toBeNull();
+  });
+
+  it("treats a zero hint as no hint", () => {
+    expect(
+      policy.delayFor(new ModelNotProvisionedError("x", { httpStatus: 400, retryAfterMs: 0 }), 1),
+    ).toBeNull();
+  });
+
+  // Opt-in is enforced by the existing NamespaceDisabledError case in
+  // the classification block above: it carries a retryAfterMs and still
+  // returns null, because it never sets `retriableWithHint`.
 });
 
 describe("C1: default backoff schedule", () => {

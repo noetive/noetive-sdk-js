@@ -14,10 +14,25 @@ export interface PublishItem {
   vector?: number[];
 }
 
+/**
+ * Body of `POST /v1/publish`.
+ *
+ * `namespace`, `model`, and `dimensions` are REQUIRED — the SDK applies no
+ * default. A request that leaves any of them unset/empty/zero is rejected at
+ * preflight, never silently routed: defaulting `namespace` to a shared value
+ * would let a forgotten field publish sensitive data into a namespace the
+ * caller never intended (a data-isolation hazard). They are typed optional only
+ * so the validator can produce a clear error instead of a TypeScript-only
+ * failure; pass all three explicitly, e.g. `namespace: "global"`,
+ * `model: "Qwen3-Embedding-4B"`, `dimensions: 1024`.
+ */
 export interface PublishRequest {
   items: PublishItem[];
+  /** REQUIRED. No SDK default — an empty namespace fails preflight. */
   namespace?: string;
+  /** REQUIRED. No SDK default — an empty model fails preflight. */
   model?: string;
+  /** REQUIRED. No SDK default — a zero/missing value fails preflight. */
   dimensions?: number;
   metadata?: Record<string, string>;
   /** Body-field deduplication key. Sent on every retry. */
@@ -29,24 +44,36 @@ export interface PublishRequest {
 export interface PublishResponse {
   message_id: string;
   /**
-   * Opaque epoch token; spec type is `uint64`. JS numbers are IEEE-754 doubles
-   * and only represent integers exactly up to `Number.MAX_SAFE_INTEGER` (2^53-1).
-   * Treat as an opaque token for equality comparison only — never do arithmetic
-   * and never compare across namespaces.
+   * Epoch component of a message's position; spec type is `uint64`. JS numbers
+   * are IEEE-754 doubles and only represent integers exactly up to
+   * `Number.MAX_SAFE_INTEGER` (2^53-1), so compare these values rather than
+   * doing arithmetic on them, and never compare across namespaces.
    */
   epoch: number;
   /**
-   * Opaque per-namespace ordering token; spec type is `uint64`. Same JS number
-   * precision caveat as `epoch`: equality only, never arithmetic, never
-   * cross-namespace comparison.
+   * Ordering component of a message's position; spec type is `uint64`, with the
+   * same precision caveat as `epoch`.
+   *
+   * Position within a namespace is the pair `(epoch, seq)`, compared
+   * lexicographically. `seq` orders messages within an epoch and restarts from
+   * a low value when the epoch advances, so ordering two messages by `seq`
+   * alone reports a routine epoch advance as messages arriving out of order.
    */
   seq: number;
 }
 
+/**
+ * Body of `POST /v1/search`. `namespace`, `model`, and `dimensions` are
+ * REQUIRED with no SDK default — see `PublishRequest` for the data-isolation
+ * rationale.
+ */
 export interface SearchRequest {
   query: string;
+  /** REQUIRED. No SDK default — an empty namespace fails preflight. */
   namespace?: string;
+  /** REQUIRED. No SDK default — an empty model fails preflight. */
   model?: string;
+  /** REQUIRED. No SDK default — a zero/missing value fails preflight. */
   dimensions?: number;
   /** When > 0, overrides the SemQL `LIMIT` clause; 0 means use SemQL / default. */
   limit?: number;
@@ -92,10 +119,18 @@ export interface LintResponse {
   valid?: boolean;
 }
 
+/**
+ * Body of `POST /v1/subscribe`. `namespace`, `model`, and `dimensions` are
+ * REQUIRED with no SDK default — see `PublishRequest` for the data-isolation
+ * rationale.
+ */
 export interface SubscribeRequest {
   query: string;
+  /** REQUIRED. No SDK default — an empty namespace fails preflight. */
   namespace?: string;
+  /** REQUIRED. No SDK default — an empty model fails preflight. */
   model?: string;
+  /** REQUIRED. No SDK default — a zero/missing value fails preflight. */
   dimensions?: number;
 }
 

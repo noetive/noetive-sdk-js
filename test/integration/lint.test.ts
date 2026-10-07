@@ -36,7 +36,7 @@ describe.skipIf(!hasApiKey())("Lint (integration)", () => {
       { readTimeoutMs: REQUEST_TIMEOUT_MS },
     );
     expect(Array.isArray(res.completions)).toBe(true);
-    expect((res.completions?.length ?? 0)).toBeGreaterThan(0);
+    expect(res.completions?.length ?? 0).toBeGreaterThan(0);
   });
 
   it("accepts a cursor measured in UTF-8 bytes, not UTF-16 code units", async () => {
@@ -47,10 +47,7 @@ describe.skipIf(!hasApiKey())("Lint (integration)", () => {
     const c = newClient();
     const query = 'MATCH DISTANCE("café") WITHIN ';
     const byteLen = new TextEncoder().encode(query).byteLength;
-    const res = await c.lint(
-      { query, cursor: byteLen },
-      { readTimeoutMs: REQUEST_TIMEOUT_MS },
-    );
+    const res = await c.lint({ query, cursor: byteLen }, { readTimeoutMs: REQUEST_TIMEOUT_MS });
     // The exact validity of this partial query is server-defined — what we
     // care about is that the cursor itself does not provoke an error.
     expect(res).toBeDefined();

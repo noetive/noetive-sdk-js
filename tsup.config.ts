@@ -6,12 +6,12 @@ export default defineConfig({
   dts: true,
   sourcemap: true,
   clean: true,
-  // Enable splitting so the two entry points share a single copy of the
-  // error classes (and other shared modules) in the ESM output. Without
-  // this, `instanceof NoetiveError` is `false` for errors raised inside
-  // the `@noetive/sdk/semantik` bundle but caught by code that imported
-  // the class from `@noetive/sdk`. tsup ignores splitting for CJS, so
-  // CJS callers should pick one entry point and stick with it.
+  // Enable splitting so the entry points share a single copy of the error
+  // classes (and other shared modules) within each format. Without this,
+  // `instanceof NoetiveError` is `false` for errors raised inside the
+  // `@noetive/sdk/semantik` bundle but caught by code that imported the
+  // class from `@noetive/sdk`. The ESM and CJS builds still each carry
+  // their own copy, so an app that loads both formats sees two classes.
   splitting: true,
   treeshake: true,
   target: "es2022",

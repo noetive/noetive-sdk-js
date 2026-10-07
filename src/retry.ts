@@ -14,6 +14,10 @@
  * - `ServiceUnavailableError` and its subclasses (`NamespaceUnavailableError`,
  *   `MeteringUnavailableError`).
  * - `TransportError` (DNS, connect, abort-without-response).
+ * - `ModelNotProvisionedError`, but *only* when the response carries
+ *   `retryAfterMs`. The code covers both a (model, dimensions) pairing
+ *   that will never serve and one that is not ready yet; the hint is
+ *   what separates them, so without it the error stays terminal.
  *
  * Not retried:
  * - Other 4xx (client bugs).
@@ -125,9 +129,18 @@ export function noRetry(): RetryPolicy {
 export const DEFAULT_RETRY_POLICY: RetryPolicy = new BackoffSchedulePolicy();
 
 function isRetryable(error: NoetiveError): boolean {
-  return (
+  if (
     error instanceof RateLimitError ||
     error instanceof ServiceUnavailableError ||
     error instanceof TransportError
-  );
+  ) {
+    return true;
+  }
+  // Errors flagged `retriableWithHint` are terminal on their own; a
+  // server-supplied hint is what marks them as worth waiting out. The
+  // hint is required here, so `delayFor` always returns it rather than
+  // falling through to the backoff schedule — for these errors a missing
+  // hint is meaningful, not a value lost in transit.
+  const ctor = error.constructor as typeof NoetiveError;
+  return ctor.retriableWithHint === true && (error.retryAfterMs ?? 0) > 0;
 }

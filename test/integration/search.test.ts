@@ -42,27 +42,6 @@ describe.skipIf(!hasApiKey())("Search (integration)", () => {
     expect(res.results?.length ?? 0).toBeGreaterThanOrEqual(1);
   });
 
-  it("infers global defaults when namespace/model/dimensions are omitted", async () => {
-    // Round-trip the defaults end-to-end: publish without args, search
-    // without args, and confirm the SDK + server agree on the same global
-    // namespace + model + dimensions tuple.
-    const c = newClient();
-    await c.publish(
-      {
-        items: [{ text: "Quantum error correction codes are essential." }],
-        ack: "durable",
-        idempotency_key: newIdempotencyKey(),
-      },
-      { readTimeoutMs: REQUEST_TIMEOUT_MS },
-    );
-    const res = await c.search(
-      { query: 'MATCH DISTANCE("quantum computing") WITHIN 0.7 LIMIT 5' },
-      { readTimeoutMs: REQUEST_TIMEOUT_MS },
-    );
-    expect(res.results).toBeDefined();
-    expect(Array.isArray(res.results)).toBe(true);
-  });
-
   it("result items expose the spec-documented shape", async () => {
     // Spec ResultItem fields: content, message_id, namespace, score, metadata.
     // We seed a uniquely-tagged document and assert the SDK surfaces each

@@ -31,19 +31,34 @@
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "types": "./dist/index.d.ts",
-      "import": "./dist/index.js",
-      "require": "./dist/index.cjs"
+      "import": {
+        "types": "./dist/index.d.ts",
+        "default": "./dist/index.js"
+      },
+      "require": {
+        "types": "./dist/index.d.cts",
+        "default": "./dist/index.cjs"
+      }
     },
     "./semantik": {
-      "types": "./dist/semantik/index.d.ts",
-      "import": "./dist/semantik/index.js",
-      "require": "./dist/semantik/index.cjs"
+      "import": {
+        "types": "./dist/semantik/index.d.ts",
+        "default": "./dist/semantik/index.js"
+      },
+      "require": {
+        "types": "./dist/semantik/index.d.cts",
+        "default": "./dist/semantik/index.cjs"
+      }
     },
     "./bud": {
-      "types": "./dist/bud/index.d.ts",
-      "import": "./dist/bud/index.js",
-      "require": "./dist/bud/index.cjs"
+      "import": {
+        "types": "./dist/bud/index.d.ts",
+        "default": "./dist/bud/index.js"
+      },
+      "require": {
+        "types": "./dist/bud/index.d.cts",
+        "default": "./dist/bud/index.cjs"
+      }
     },
     "./package.json": "./package.json"
   },
@@ -56,6 +71,14 @@
   "engines": {
     "node": ">=18"
   },
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.9.1",
+      "onFail": "download"
+    }
+  },
+  "packageManager": "pnpm@12.9.1",
   "publishConfig": {
     "access": "public"
   },
@@ -72,7 +95,7 @@
     "coverage": "vitest run test/unit --coverage",
     "recorder": "tsx tools/recorder.ts",
     "example": "tsx",
-    "prepublishOnly": "npm run typecheck && npm run lint && npm run test && npm run build"
+    "prepublishOnly": "pnpm run typecheck && pnpm run lint && pnpm run test && pnpm run build"
   },
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",

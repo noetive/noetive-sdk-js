@@ -36,10 +36,14 @@ export NOETIVE_KEY_SECRET=<your-api-key>
 `health` and `lint` work without a key; `publish`, `search`, and `subscribe`
 require an authenticated account with an active subscription.
 
-Publish, search, and subscribe default to the **`global` namespace** — the
-shared, ready-to-use namespace backed by `Qwen3-Embedding-4B` (1024 dimensions).
-Pass `namespace` to write into a private namespace you've provisioned on the
-dashboard.
+Publish, search, and subscribe **require** `namespace`, `model`, and
+`dimensions` on every call. The SDK applies no default to these targeting
+fields: omitting any of them fails fast at preflight rather than substituting a
+value. Defaulting `namespace` to a shared value would let a caller who simply
+forgot the field route sensitive data into a namespace they never intended — a
+data-isolation hazard the SDK makes impossible. The shared, ready-to-use
+namespace is `global`, backed by `Qwen3-Embedding-4B` (1024 dimensions); name it
+explicitly when you want it.
 
 ## Quickstart
 
@@ -48,14 +52,21 @@ import { Client } from "@noetive/sdk";
 
 const noetive = new Client(); // reads NOETIVE_KEY_SECRET from env
 
+// namespace, model, and dimensions are required on every call.
 await noetive.semantik.publish({
   items: [{ text: "Transformer models reshaped NLP benchmarks." }],
+  namespace: "global",
+  model: "Qwen3-Embedding-4B",
+  dimensions: 1024,
   metadata: { source: "arxiv" },
   ack: "durable",
 });
 
 const results = await noetive.semantik.search({
   query: 'MATCH DISTANCE("machine learning") WITHIN 0.4 LIMIT 10',
+  namespace: "global",
+  model: "Qwen3-Embedding-4B",
+  dimensions: 1024,
 });
 for (const hit of results.results ?? []) {
   console.log(hit.score, hit.content);
@@ -70,6 +81,9 @@ import { Client } from "@noetive/sdk";
 const noetive = new Client();
 const stream = await noetive.semantik.subscribe({
   query: 'MATCH DISTANCE("open-source model releases") WITHIN 0.5',
+  namespace: "global",
+  model: "Qwen3-Embedding-4B",
+  dimensions: 1024,
 });
 
 console.log("subscribed:", stream.subscriptionId);
@@ -85,7 +99,12 @@ try {
 On Node 22+ you can use the `await using` syntax for automatic cleanup:
 
 ```ts
-await using stream = await noetive.semantik.subscribe({ query: "…" });
+await using stream = await noetive.semantik.subscribe({
+  query: "…",
+  namespace: "global",
+  model: "Qwen3-Embedding-4B",
+  dimensions: 1024,
+});
 for await (const match of stream) {
   // …
 }
@@ -101,10 +120,19 @@ without the root client:
 import { SemantikClient } from "@noetive/sdk/semantik";
 
 const semantik = new SemantikClient({ apiKey: process.env.NOETIVE_KEY_SECRET! });
-await semantik.publish({ items: [{ text: "…" }] });
+await semantik.publish({
+  items: [{ text: "…" }],
+  namespace: "global",
+  model: "Qwen3-Embedding-4B",
+  dimensions: 1024,
+});
 ```
 
 ### Targeting a private namespace
+
+The same three required fields target a private namespace you've provisioned on
+the dashboard — there is no default, so name the namespace, model, and
+dimensions that belong to it:
 
 ```ts
 await noetive.semantik.publish({
@@ -123,9 +151,12 @@ All Semantik endpoints are reached through `client.semantik`.
 |---|---|---|
 | `client.semantik.health()` | Liveness probe | No |
 | `client.semantik.lint({ query, cursor? })` | Validate a SemQL query; get diagnostics + completions | No |
-| `client.semantik.publish({ items, namespace?, model?, dimensions?, metadata?, idempotency_key?, ack? })` | Publish a single message | Yes |
-| `client.semantik.search({ query, namespace?, model?, dimensions?, limit? })` | SemQL semantic search | Yes |
-| `client.semantik.subscribe({ query, namespace?, model?, dimensions? })` | SSE stream of match events | Yes |
+| `client.semantik.publish({ items, namespace, model, dimensions, metadata?, idempotency_key?, ack? })` | Publish a single message | Yes |
+| `client.semantik.search({ query, namespace, model, dimensions, limit? })` | SemQL semantic search | Yes |
+| `client.semantik.subscribe({ query, namespace, model, dimensions })` | SSE stream of match events | Yes |
+
+`namespace`, `model`, and `dimensions` are required on `publish`, `search`, and
+`subscribe`; the SDK never defaults them (see [Configuration](#configuration)).
 
 Every method accepts an optional second argument `{ signal?: AbortSignal,
 connectTimeoutMs?: number, readTimeoutMs?: number }` for per-call
@@ -273,15 +304,15 @@ Attach the output to bug reports.
 ## Development
 
 ```bash
-npm install
-npm run typecheck
-npm run lint
-npm run test              # unit tests (no network)
-npm run build             # dual ESM + CJS bundles to dist/
+pnpm install
+pnpm run typecheck
+pnpm run lint
+pnpm run test             # unit tests (no network)
+pnpm run build            # dual ESM + CJS bundles to dist/
 
 # Integration tests hit the live https://semantik.noetive.io endpoint.
 # Skipped when NOETIVE_KEY_SECRET is unset.
-NOETIVE_KEY_SECRET=<your-api-key> npm run test:integration
+NOETIVE_KEY_SECRET=<your-api-key> pnpm run test:integration
 ```
 
 ## Security

@@ -12,9 +12,6 @@ export { SubscribeStream } from "./streaming.js";
 
 export {
   DEFAULT_BASE_URL,
-  DEFAULT_DIMENSIONS,
-  DEFAULT_MODEL,
-  DEFAULT_NAMESPACE,
   MAX_LINT_BODY_BYTES,
   MAX_METADATA_KEYS,
   MAX_METADATA_KEY_LEN,

@@ -7,27 +7,19 @@
  * and the public-api.yaml the change is sourced from.
  */
 
+/**
+ * Production endpoint. Override via `SemantikClientOptions.baseUrl` or the
+ * `NOETIVE_BASE_URL` environment variable.
+ *
+ * This base URL — together with the API key — is the SDK's entire defaulting
+ * surface. The targeting fields `namespace`, `model`, and `dimensions` are
+ * deliberately NOT defaulted: every publish, search, and subscribe must set
+ * them explicitly. Defaulting `namespace` to a shared value would let a caller
+ * who simply forgot the field route sensitive data into a namespace they never
+ * intended — a data-isolation hazard — so the SDK fails preflight instead of
+ * silently substituting a value.
+ */
 export const DEFAULT_BASE_URL = "https://semantik.noetive.io";
-
-/**
- * Namespace the SDK falls back to when a request leaves `namespace` empty.
- * The `global` namespace is provisioned for every account with no extra
- * setup; private namespaces require dashboard configuration and incur
- * usage charges.
- */
-export const DEFAULT_NAMESPACE = "global";
-
-/**
- * Embedding model pre-configured for the `global` namespace. The SDK fills
- * this in only when the effective namespace is `global` and `model` is empty.
- */
-export const DEFAULT_MODEL = "Qwen3-Embedding-4B";
-
-/**
- * Output dimensionality of `DEFAULT_MODEL`. The SDK fills this in only when
- * the effective namespace is `global` and `dimensions` is zero.
- */
-export const DEFAULT_DIMENSIONS = 1024;
 
 /** Maximum vector dimensionality the server accepts. */
 export const MAX_VECTOR_DIM = 4096;
@@ -47,20 +39,3 @@ export const MAX_LINT_BODY_BYTES = 64 * 1024;
 export const MAX_SEARCH_BODY_BYTES = 1024 * 1024;
 export const MAX_SUBSCRIBE_BODY_BYTES = 1024 * 1024;
 export const MAX_PUBLISH_BODY_BYTES = 2 * 1024 * 1024;
-
-/**
- * Fill in `model` and `dimensions` when the effective namespace is the
- * default one and the caller left them at the empty / zero value. Mutates
- * the supplied request in-place. Used by `publish`, `search`, `subscribe`.
- */
-export function applyNamespaceDefaults<
-  T extends { namespace?: string; model?: string; dimensions?: number },
->(req: T): T {
-  if (!req.namespace || req.namespace.length === 0) {
-    req.namespace = DEFAULT_NAMESPACE;
-  }
-  if (req.namespace !== DEFAULT_NAMESPACE) return req;
-  if (!req.model) req.model = DEFAULT_MODEL;
-  if (!req.dimensions || req.dimensions === 0) req.dimensions = DEFAULT_DIMENSIONS;
-  return req;
-}

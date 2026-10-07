@@ -81,6 +81,17 @@ export class NoetiveError extends Error {
   /** Default code applied when the constructor does not override it. */
   static defaultCode: string | undefined = undefined;
 
+  /**
+   * Whether a server retry hint makes this error worth waiting out.
+   *
+   * Most errors are either always safe to retry or never are. A few
+   * describe a condition the caller cannot fix but the service may
+   * resolve shortly; the service signals those by sending
+   * `retryAfterMs`. Subclasses that set this to `true` are retried only
+   * when that hint is present, and stay terminal without it.
+   */
+  static retriableWithHint = false;
+
   readonly code: string | undefined;
   readonly httpStatus: number;
   readonly requestId: string | undefined;
@@ -162,9 +173,17 @@ export class NamespaceDisabledError extends NoetiveError {
   static override defaultCode: string | undefined = ErrorCodes.NamespaceDisabled;
 }
 
-/** Namespace exists but no entry for (model, dimensions). NOT retryable. */
+/**
+ * Namespace exists but no entry for (model, dimensions).
+ *
+ * The same code also covers a pairing that is provisioned but not yet
+ * ready to serve. The service marks that case by sending a retry hint,
+ * and the SDK waits it out; without a hint the pairing is treated as one
+ * that will not become available on its own.
+ */
 export class ModelNotProvisionedError extends NoetiveError {
   static override defaultCode: string | undefined = ErrorCodes.ModelNotProvisioned;
+  static override retriableWithHint = true;
 }
 
 /** Unexpected server error. Not retried by default. */

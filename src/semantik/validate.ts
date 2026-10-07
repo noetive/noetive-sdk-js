@@ -55,6 +55,31 @@ export function validateApiKey(key: string): void {
   if (!key) throw preflightError("API key must not be empty");
 }
 
+/**
+ * Enforce the three targeting fields every publish/search/subscribe request
+ * must carry: a non-empty `namespace`, a non-empty `model`, and an in-range
+ * `dimensions`.
+ *
+ * The SDK does not default these. Routing a request to a namespace the caller
+ * never named — silently falling back to a shared one — risks publishing
+ * sensitive data into a space it was not meant for, so an unset field is a
+ * fail-fast preflight error rather than a convenience default. `model` and
+ * `dimensions` are likewise model-coupled properties with no server default.
+ */
+function validateTarget(
+  namespace: string | undefined,
+  model: string | undefined,
+  dimensions: number | undefined,
+): void {
+  if (!namespace || namespace.length === 0) {
+    throw preflightError("namespace must not be empty");
+  }
+  if (!model || model.length === 0) {
+    throw preflightError("model must not be empty");
+  }
+  validateDimensions(dimensions);
+}
+
 function validateDimensions(dim: number | undefined): void {
   if (dim === undefined || dim <= 0) {
     throw preflightError("dimensions must be greater than 0");
@@ -161,10 +186,7 @@ function validatePublishItem(item: PublishItem): void {
 }
 
 export function validatePublishRequest(req: PublishRequest): void {
-  if (!req.model || req.model.length === 0) {
-    throw preflightError("publish model must not be empty");
-  }
-  validateDimensions(req.dimensions);
+  validateTarget(req.namespace, req.model, req.dimensions);
   if (!Array.isArray(req.items) || req.items.length !== 1) {
     throw preflightError(
       `publish requires exactly 1 item, got ${Array.isArray(req.items) ? req.items.length : 0}`,
@@ -188,10 +210,7 @@ export function validateSearchRequest(req: SearchRequest): void {
   if (!req.query || req.query.length === 0) {
     throw preflightError("search query must not be empty");
   }
-  if (!req.model || req.model.length === 0) {
-    throw preflightError("search model must not be empty");
-  }
-  validateDimensions(req.dimensions);
+  validateTarget(req.namespace, req.model, req.dimensions);
   if (req.limit !== undefined && req.limit < 0) {
     throw preflightError("search limit must not be negative");
   }
@@ -201,10 +220,7 @@ export function validateSubscribeRequest(req: SubscribeRequest): void {
   if (!req.query || req.query.length === 0) {
     throw preflightError("subscribe query must not be empty");
   }
-  if (!req.model || req.model.length === 0) {
-    throw preflightError("subscribe model must not be empty");
-  }
-  validateDimensions(req.dimensions);
+  validateTarget(req.namespace, req.model, req.dimensions);
 }
 
 export function validateLintRequest(req: LintRequest): void {

@@ -1,0 +1,4 @@
+allowBuilds:
+  esbuild: true
+  '@biomejs/biome': false
+  msw: false
