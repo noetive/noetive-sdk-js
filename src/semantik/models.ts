@@ -77,6 +77,15 @@ export interface SearchRequest {
   dimensions?: number;
   /** When > 0, overrides the SemQL `LIMIT` clause; 0 means use SemQL / default. */
   limit?: number;
+  /**
+   * When `true`, every result carries its stored embedding in `vector`
+   * (`dimensions` numbers). Defaults to `false`. A request with this set returns
+   * at most 50 results: a larger `limit` is clamped, not rejected. Each vector
+   * adds roughly `dimensions` x 13 bytes of JSON to the response. A stored
+   * vector is readable by anyone who can reach the namespace, just like
+   * `content` and `metadata`.
+   */
+  include_vector?: boolean;
 }
 
 export interface ResultItem {
@@ -85,10 +94,20 @@ export interface ResultItem {
   metadata?: Record<string, string>;
   score?: number;
   namespace?: string;
+  /** The stored embedding. Present only when the search set `include_vector`. */
+  vector?: number[];
 }
 
 export interface SearchResponse {
   results?: ResultItem[];
+  /**
+   * `true` when the page was cut short to stay under the 8 MiB response size
+   * limit; absent otherwise. The results returned are the best-ranked ones, and
+   * the dropped ones cannot be paged to: lower `limit` or narrow the query.
+   * Not set when a page is merely clamped to the result ceiling (1000, or 50
+   * with `include_vector`).
+   */
+  truncated?: boolean;
 }
 
 export interface LintRequest {
@@ -143,6 +162,13 @@ export interface SubscribeRequest {
    * subscription that receives every match.
    */
   group?: string;
+  /**
+   * When `true`, every `match` event carries the matched message's stored
+   * embedding in `vector`. Defaults to `false` and is fixed for the life of the
+   * stream. A stored vector is readable by anyone who can reach the namespace,
+   * just like content and metadata.
+   */
+  include_vector?: boolean;
 }
 
 /** Payload of the first SSE frame on a subscribe stream. */
@@ -161,4 +187,13 @@ export interface MatchEvent {
    * and `0` mean different things.
    */
   lead?: number;
+  /**
+   * The matched message's `seq`; spec type is `uint64`, with the same precision
+   * caveat as `PublishResponse.seq`. It is not a namespace-wide ordering and
+   * matches are not delivered in `seq` order; use it to recognise a message you
+   * have already seen, not to sort or to detect gaps.
+   */
+  seq?: number;
+  /** The matched message's stored embedding. Present only when the subscription set `include_vector`. */
+  vector?: number[];
 }

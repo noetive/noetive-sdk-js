@@ -24,7 +24,12 @@
 
 import { MalformedSseError } from "./errors.js";
 
-export const MAX_FRAME_BYTES = 64 * 1024;
+/**
+ * 128 KiB admits the largest Semantik event: a match frame carrying a
+ * 4096-dimension vector whose components encode at their longest (about
+ * 94 KB; a typical embedding is about 55 KB).
+ */
+export const MAX_FRAME_BYTES = 128 * 1024;
 
 export interface SseFrame {
   event: string;

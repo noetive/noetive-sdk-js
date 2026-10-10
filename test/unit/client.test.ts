@@ -145,4 +145,76 @@ describe("SemantikClient — preflight via methods", () => {
     });
     expect(fetchMock).toHaveBeenCalled();
   });
+
+  describe("search — include_vector", () => {
+    const REQ = {
+      query: "anything",
+      namespace: "global",
+      model: "Qwen3-Embedding-4B",
+      dimensions: 4,
+    } as const;
+
+    async function run(
+      req: Record<string, unknown>,
+      response: unknown,
+    ): Promise<{
+      body: Record<string, unknown>;
+      res: Awaited<ReturnType<SemantikClient["search"]>>;
+    }> {
+      const fetchMock = vi.fn(
+        async (_url: unknown, _init?: RequestInit) =>
+          new Response(JSON.stringify(response), {
+            status: 200,
+            headers: { "content-type": "application/json" },
+          }),
+      );
+      const c = new SemantikClient({
+        apiKey: "keyu_test",
+        fetch: fetchMock as unknown as typeof fetch,
+      });
+      const res = await c.search({ ...REQ, ...req });
+      const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+      const body = JSON.parse(new TextDecoder().decode(init.body as Uint8Array));
+      return { body, res };
+    }
+
+    // Absent by default so ordinary searches keep small responses.
+    it("omits include_vector from the request body when unset", async () => {
+      const { body } = await run({}, { results: [] });
+      expect(body).not.toHaveProperty("include_vector");
+    });
+
+    // The flag must reach the server verbatim or results never carry vectors.
+    it("sends include_vector in the request body when set", async () => {
+      const { body } = await run({ include_vector: true }, { results: [] });
+      expect(body).toHaveProperty("include_vector", true);
+    });
+
+    // `vector` is only present when requested; absence must stay undefined.
+    it("decodes result vector when present and leaves it undefined when absent", async () => {
+      const { res } = await run(
+        { include_vector: true },
+        {
+          results: [{ message_id: "a", vector: [0.1, 0.2, 0.3, 0.4] }, { message_id: "b" }],
+        },
+      );
+      expect(res.results?.map((r) => r.vector)).toEqual([[0.1, 0.2, 0.3, 0.4], undefined]);
+    });
+
+    // A caller must be able to tell a cut-short page from a complete one.
+    it("decodes truncated, undefined when the page was not cut short", async () => {
+      const cut = await run({}, { results: [], truncated: true });
+      const whole = await run({}, { results: [] });
+      expect([cut.res.truncated, whole.res.truncated]).toEqual([true, undefined]);
+    });
+
+    // A full 50-result page of 4096-dim vectors (~2.7 MB) must decode: the
+    // SDK applies no response-body cap that would reject it.
+    it("decodes a 50-result page of 4096-dimension vectors", async () => {
+      const vector = Array.from({ length: 4096 }, (_, i) => -0.012345679 - i * 1e-7);
+      const results = Array.from({ length: 50 }, (_, i) => ({ message_id: `m${i}`, vector }));
+      const { res } = await run({ dimensions: 4096, include_vector: true, limit: 50 }, { results });
+      expect(res.results?.length).toBe(50);
+    });
+  });
 });

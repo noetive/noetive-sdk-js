@@ -18,9 +18,9 @@ async function drain(source: ReadableStream<Uint8Array>, max?: number): Promise<
 }
 
 describe("the SSE frame bound", () => {
-  it("defaults to 64 KiB", async () => {
+  it("defaults to 128 KiB", async () => {
     const big = `event: batch\ndata: ${"x".repeat(MAX_FRAME_BYTES)}\n\n`;
-    await expect(drain(body(big))).rejects.toThrow(/exceeds 65536/);
+    await expect(drain(body(big))).rejects.toThrow(/exceeds 131072/);
   });
 
   it("takes a larger bound from the caller", async () => {
@@ -54,12 +54,14 @@ describe("the SSE frame bound", () => {
   });
 
   it("counts bytes, not characters", async () => {
-    // 40 000 two-byte characters: under the cap counted as UTF-16 units, over it in bytes.
-    const twoByte = `data: ${"é".repeat(40_000)}\n\n`;
+    // Two-byte characters at 5/8 of the cap: under it counted as UTF-16 units,
+    // over it in bytes.
+    const count = (MAX_FRAME_BYTES * 5) / 8;
+    const twoByte = `data: ${"é".repeat(count)}\n\n`;
     await expect(drain(body(twoByte))).rejects.toBeInstanceOf(MalformedSseError);
 
     // The same count of one-byte characters fits.
-    expect(await drain(body(`data: ${"x".repeat(40_000)}\n\n`))).toHaveLength(1);
+    expect(await drain(body(`data: ${"x".repeat(count)}\n\n`))).toHaveLength(1);
 
     // A surrogate pair is four bytes: 5 000 emoji are 20 006 bytes in 10 006 units.
     const emoji = `data: ${"😀".repeat(5_000)}\n\n`;
@@ -69,7 +71,7 @@ describe("the SSE frame bound", () => {
 
   it("applies the byte count to a line still waiting for its terminator", async () => {
     // No line break at all: the tail alone is over the cap in bytes.
-    await expect(drain(body(`data: ${"é".repeat(40_000)}`))).rejects.toBeInstanceOf(
+    await expect(drain(body(`data: ${"é".repeat((MAX_FRAME_BYTES * 5) / 8)}`))).rejects.toBeInstanceOf(
       MalformedSseError,
     );
   });

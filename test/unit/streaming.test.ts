@@ -10,6 +10,7 @@ import {
 } from "../../src/errors.js";
 import { BackoffSchedulePolicy } from "../../src/retry.js";
 import { SemantikClient } from "../../src/semantik/client.js";
+import type { MatchEvent } from "../../src/semantik/models.js";
 
 function sseResponse(body: string, init: ResponseInit = {}): Response {
   return new Response(body, {
@@ -280,5 +281,74 @@ describe("subscribe — message groups", () => {
     const leads: (number | undefined)[] = [];
     for await (const m of stream) leads.push(m.lead);
     expect(leads).toEqual([undefined, 0, 0.25]);
+  });
+});
+
+describe("subscribe — include_vector", () => {
+  const SUBSCRIBED = `event: subscribed\ndata: {"subscription_id":"s"}\n\n`;
+
+  async function open(wire: string, req: Record<string, unknown> = {}) {
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      void init;
+      return sseResponse(wire);
+    });
+    const c = new SemantikClient({
+      apiKey: "keyu_test",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    const stream = await c.subscribe({ ...SUB_REQ, ...req });
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    const body = JSON.parse(new TextDecoder().decode(init.body as Uint8Array)) as Record<
+      string,
+      unknown
+    >;
+    return { stream, body };
+  }
+
+  // The flag defaults to false server-side; sending it unprompted would
+  // needlessly opt every stream into ~50 KB frames if a default ever changed.
+  it("omits include_vector from the request body when unset", async () => {
+    const { stream, body } = await open(SUBSCRIBED);
+    await stream.close();
+    expect(body).not.toHaveProperty("include_vector");
+  });
+
+  // The flag must reach the server verbatim or match frames never carry vectors.
+  it("sends include_vector in the request body when set", async () => {
+    const { stream, body } = await open(SUBSCRIBED, { include_vector: true });
+    await stream.close();
+    expect(body).toHaveProperty("include_vector", true);
+  });
+
+  // seq and vector are optional on the wire; absence must stay undefined so
+  // callers can tell "not requested" from an empty vector.
+  it("decodes seq and vector when present and leaves them undefined when absent", async () => {
+    const wire = [
+      SUBSCRIBED,
+      `event: match\ndata: {"message_id":"m1","score":0.9,"seq":42,"vector":[0.5,-0.25]}\n\n`,
+      `event: match\ndata: {"message_id":"m2","score":0.8}\n\n`,
+    ].join("");
+    const { stream } = await open(wire, { include_vector: true });
+    const got: MatchEvent[] = [];
+    for await (const m of stream) got.push(m);
+    expect(got.map((m) => [m.seq, m.vector])).toEqual([
+      [42, [0.5, -0.25]],
+      [undefined, undefined],
+    ]);
+  });
+
+  // The largest legal frame: a published vector may carry any finite
+  // component, and magnitudes near 1e20 encode as 22-digit decimals, so a
+  // 4096-dim frame can reach about 94 KB. A cap below that would tear down
+  // the stream mid-flight.
+  it("decodes a 4096-dimension match frame within the SSE frame cap", async () => {
+    const vector = Array.from({ length: 4096 }, () => -123456790000000000000);
+    const payload = JSON.stringify({ message_id: "m", score: 0.9, seq: 7, vector });
+    expect(payload.length).toBeGreaterThan(90_000);
+    const wire = `${SUBSCRIBED}event: match\ndata: ${payload}\n\n`;
+    const { stream } = await open(wire, { dimensions: 4096, include_vector: true });
+    const got: MatchEvent[] = [];
+    for await (const m of stream) got.push(m);
+    expect(got[0]?.vector).toEqual(vector);
   });
 });

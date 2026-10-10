@@ -73,6 +73,14 @@ for (const hit of results.results ?? []) {
 }
 ```
 
+Set `include_vector: true` to get each result's stored embedding back in
+`hit.vector`. This caps the page at 50 results (a larger `limit` is clamped), and
+each vector adds about `dimensions` x 13 bytes of JSON. Anyone who can reach the
+namespace can read its stored vectors, as with content and metadata. When
+`results.truncated` is `true` the page was cut short to fit the 8 MiB response
+limit; the dropped results cannot be paged to, so lower `limit` or narrow the
+query.
+
 ## Subscribe (live matches over SSE)
 
 ```ts
@@ -110,6 +118,14 @@ for await (const match of stream) {
 }
 // stream.close() runs at scope exit.
 ```
+
+### Match vectors and seq
+
+Set `include_vector: true` on `subscribe` to receive each match's stored
+embedding in `match.vector`; the choice is fixed for the life of the stream.
+`match.seq` is the matched message's `seq`, useful for recognising a message you
+have already seen. It is not a namespace-wide ordering and matches are not
+delivered in `seq` order.
 
 ### Message groups
 
