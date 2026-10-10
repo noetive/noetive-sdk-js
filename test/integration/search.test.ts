@@ -32,7 +32,7 @@ describe.skipIf(!hasApiKey())("Search (integration)", () => {
     }
     const res = await c.search(
       {
-        query: 'MATCH DISTANCE("transformer architecture") WITHIN 0.6 LIMIT 5',
+        query: 'MATCH DISTANCE("transformer architecture") LIMIT 5',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,
@@ -62,7 +62,7 @@ describe.skipIf(!hasApiKey())("Search (integration)", () => {
     );
     const res = await c.search(
       {
-        query: 'MATCH DISTANCE("bayesian neural network calibration") WITHIN 0.7 LIMIT 10',
+        query: 'MATCH DISTANCE("bayesian neural network calibration") LIMIT 10',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,
@@ -108,7 +108,7 @@ describe.skipIf(!hasApiKey())("Search (integration)", () => {
     }
     const res = await c.search(
       {
-        query: 'MATCH DISTANCE("transformer architecture") WITHIN 0.99',
+        query: 'MATCH DISTANCE("transformer architecture")',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,

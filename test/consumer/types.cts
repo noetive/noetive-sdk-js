@@ -3,7 +3,7 @@ import sdk = require("@noetive/sdk");
 import semantik = require("@noetive/sdk/semantik");
 
 const req: semantik.SearchRequest = {
-  query: 'MATCH DISTANCE("x") WITHIN 0.4',
+  query: 'MATCH DISTANCE("x")',
   namespace: "global",
   model: "Qwen3-Embedding-4B",
   dimensions: 1024,

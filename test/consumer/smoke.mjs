@@ -41,7 +41,7 @@ const server = createServer((req, res) => {
   if (req.method === "POST" && req.url === "/v1/health") {
     res.end("{}");
   } else if (req.method === "POST" && req.url === "/v1/lint") {
-    res.end(JSON.stringify({ valid: true, normalized: 'MATCH DISTANCE("x") WITHIN 0.4' }));
+    res.end(JSON.stringify({ valid: true, normalized: 'MATCH DISTANCE("x")' }));
   } else {
     res.statusCode = 404;
     res.end(JSON.stringify({ error: { code: "not_found", message: req.url } }));
@@ -55,7 +55,7 @@ try {
     baseUrl: `http://127.0.0.1:${port}`,
   });
   await stub.health();
-  const res = await stub.lint({ query: 'MATCH DISTANCE("x") WITHIN 0.4' });
+  const res = await stub.lint({ query: 'MATCH DISTANCE("x")' });
   assert.equal(res.valid, true, "lint response must decode");
   assert.deepEqual(
     seen.map((s) => s.path),

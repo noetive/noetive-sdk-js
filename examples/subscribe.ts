@@ -10,7 +10,7 @@ import { Client } from "../src/index.js";
 
 const client = new Client();
 const stream = await client.semantik.subscribe({
-  query: 'MATCH DISTANCE("mechanical engineering") WITHIN 0.6',
+  query: 'MATCH DISTANCE("mechanical engineering")',
   namespace: "global",
   model: "Qwen3-Embedding-4B",
   dimensions: 1024,

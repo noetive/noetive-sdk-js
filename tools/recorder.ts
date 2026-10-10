@@ -12,11 +12,11 @@
  * comparable across SDK families:
  *
  *   recorder health
- *   recorder lint "MATCH DISTANCE(\"x\") WITHIN 0.4"
+ *   recorder lint "MATCH DISTANCE(\"x\")"
  *   recorder publish-text "hello world"
  *   recorder publish-vector
- *   recorder search "MATCH DISTANCE(\"x\") WITHIN 0.4 LIMIT 3"
- *   recorder subscribe "MATCH DISTANCE(\"x\") WITHIN 0.5" [maxEvents]
+ *   recorder search "MATCH DISTANCE(\"x\") LIMIT 3"
+ *   recorder subscribe "MATCH DISTANCE(\"x\")" [maxEvents]
  *   recorder raw POST /v1/whatever '{"foo":"bar"}'
  *
  * Required env: NOETIVE_KEY_SECRET. Optional: NOETIVE_BASE_URL.
@@ -54,7 +54,7 @@ switch (cmd) {
     await recordJson({
       path: "/v1/lint",
       auth: false,
-      body: { query: rest.join(" ") || 'MATCH DISTANCE("machine learning") WITHIN 0.4 LIMIT 5' },
+      body: { query: rest.join(" ") || 'MATCH DISTANCE("machine learning") LIMIT 5' },
     });
     break;
   case "publish-text":
@@ -90,7 +90,7 @@ switch (cmd) {
       path: "/v1/search",
       auth: true,
       body: {
-        query: rest.join(" ") || 'MATCH DISTANCE("transformer") WITHIN 0.6 LIMIT 5',
+        query: rest.join(" ") || 'MATCH DISTANCE("transformer") LIMIT 5',
         namespace: "global",
         model: RECORD_MODEL,
         dimensions: RECORD_DIMENSIONS,
@@ -98,7 +98,7 @@ switch (cmd) {
     });
     break;
   case "subscribe": {
-    const query = rest[0] ?? 'MATCH DISTANCE("mechanical engineering") WITHIN 0.6';
+    const query = rest[0] ?? 'MATCH DISTANCE("mechanical engineering")';
     const max = Number.parseInt(rest[1] ?? "3", 10);
     await recordSse({
       path: "/v1/subscribe",

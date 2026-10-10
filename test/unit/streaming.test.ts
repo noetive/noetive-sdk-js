@@ -232,3 +232,53 @@ describe("B1: setup vs stream error split", () => {
     expect((wrapped as { cause?: unknown }).cause).toBe(inner);
   });
 });
+
+describe("subscribe — message groups", () => {
+  const SUBSCRIBED = `event: subscribed\ndata: {"subscription_id":"s"}\n\n`;
+
+  async function sentBody(req: Record<string, unknown>): Promise<Record<string, unknown>> {
+    const fetchMock = vi.fn(async (_url: unknown, init?: RequestInit) => {
+      void init;
+      return sseResponse(SUBSCRIBED);
+    });
+    const c = new SemantikClient({
+      apiKey: "keyu_test",
+      fetch: fetchMock as unknown as typeof fetch,
+    });
+    const stream = await c.subscribe({ ...SUB_REQ, ...req });
+    await stream.close();
+    const init = fetchMock.mock.calls[0]?.[1] as RequestInit;
+    return JSON.parse(new TextDecoder().decode(init.body as Uint8Array)) as Record<string, unknown>;
+  }
+
+  // An ungrouped subscription must not send a `group` key at all: the server
+  // treats absence as "ungrouped", and an explicit null/empty would be rejected.
+  it("omits group from the request body when unset", async () => {
+    expect(await sentBody({})).not.toHaveProperty("group");
+  });
+
+  // A set group has to reach the server verbatim or members would not compete.
+  it("sends group in the request body when set", async () => {
+    expect(await sentBody({ group: "pandemic-roles_2" })).toHaveProperty(
+      "group",
+      "pandemic-roles_2",
+    );
+  });
+
+  // `lead` absent (uncontested/ungrouped) and `lead: 0` (tie) mean different
+  // things; the decoder must not collapse one into the other.
+  it("decodes lead as undefined when absent and 0 when a tie", async () => {
+    const wire = [
+      SUBSCRIBED,
+      `event: match\ndata: {"message_id":"m1","score":0.9}\n\n`,
+      `event: match\ndata: {"message_id":"m2","score":0.9,"lead":0}\n\n`,
+      `event: match\ndata: {"message_id":"m3","score":0.9,"lead":0.25}\n\n`,
+    ].join("");
+    const fetchMock = vi.fn(async () => sseResponse(wire)) as unknown as typeof fetch;
+    const c = new SemantikClient({ apiKey: "keyu_test", fetch: fetchMock });
+    const stream = await c.subscribe({ ...SUB_REQ });
+    const leads: (number | undefined)[] = [];
+    for await (const m of stream) leads.push(m.lead);
+    expect(leads).toEqual([undefined, 0, 0.25]);
+  });
+});

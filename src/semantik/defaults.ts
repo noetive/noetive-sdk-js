@@ -34,6 +34,9 @@ export const MAX_METADATA_KEY_LEN = 64;
 export const MAX_METADATA_VALUE_LEN = 256;
 export const MAX_METADATA_TOTAL_BYTES = 4 * 1024;
 
+/** Maximum length of a subscription `group` name, in characters. */
+export const MAX_GROUP_LEN = 64;
+
 /** Per-endpoint request body limits. */
 export const MAX_LINT_BODY_BYTES = 64 * 1024;
 export const MAX_SEARCH_BODY_BYTES = 1024 * 1024;

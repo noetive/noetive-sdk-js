@@ -175,6 +175,33 @@ describe("validateSubscribeRequest", () => {
   });
 });
 
+describe("validateSubscribeRequest — group", () => {
+  const base = { query: "x", namespace: "global", model: "m", dimensions: 1 };
+
+  // The server rejects group names outside [A-Za-z0-9_-]{1,64}; failing locally
+  // saves a round trip and gives the caller a precise message.
+  it.each([
+    ["empty", ""],
+    ["65 characters", "a".repeat(65)],
+    ["whitespace", "two words"],
+    ["non-ASCII letter", "rôle"],
+    ["slash", "a/b"],
+  ])("rejects a group that is %s", (_label, group) => {
+    expect(() => validateSubscribeRequest({ ...base, group })).toThrow(InvalidRequestError);
+  });
+
+  // Boundary: exactly MAX_GROUP_LEN characters and typical names must pass, so
+  // the limit is not accidentally off by one.
+  it.each([["a".repeat(64)], ["pandemic-roles_2"]])("accepts group %s", (group) => {
+    expect(() => validateSubscribeRequest({ ...base, group })).not.toThrow();
+  });
+
+  // Omitting group means ungrouped; it must never be treated as an empty name.
+  it("accepts an undefined group", () => {
+    expect(() => validateSubscribeRequest({ ...base, group: undefined })).not.toThrow();
+  });
+});
+
 describe("validateLintRequest", () => {
   it("accepts a minimal request", () => {
     expect(() => validateLintRequest({ query: "x" })).not.toThrow();

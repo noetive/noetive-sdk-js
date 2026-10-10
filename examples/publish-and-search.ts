@@ -23,7 +23,7 @@ const pub = await client.semantik.publish({
 console.log("publish:", pub);
 
 const found = await client.semantik.search({
-  query: 'MATCH DISTANCE("transformer architectures") WITHIN 0.6 LIMIT 5',
+  query: 'MATCH DISTANCE("transformer architectures") LIMIT 5',
   namespace: "global",
   model: "Qwen3-Embedding-4B",
   dimensions: 1024,

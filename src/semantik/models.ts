@@ -132,6 +132,17 @@ export interface SubscribeRequest {
   model?: string;
   /** REQUIRED. No SDK default — a zero/missing value fails preflight. */
   dimensions?: number;
+  /**
+   * Optional message group, 1-64 characters from ASCII letters, digits, `-`
+   * and `_`. Subscriptions on the same account and namespace that name the
+   * same group compete: a message matching several members is delivered only
+   * to the best-scoring member (on an exact tie, to every tied member). Use it
+   * to split one stream between roles. Members of a group must use the same
+   * kinds of clauses (and, for DISTANCE, the same metric), otherwise the
+   * request is rejected with `invalid_request`. Omit for an ungrouped
+   * subscription that receives every match.
+   */
+  group?: string;
 }
 
 /** Payload of the first SSE frame on a subscribe stream. */
@@ -143,4 +154,11 @@ export interface SubscribedEvent {
 export interface MatchEvent {
   message_id: string;
   score: number;
+  /**
+   * How far this match out-scored the best competing member of the same group:
+   * this score minus that member's score. `0` means a tie. Absent (`undefined`)
+   * when the subscription is ungrouped or no other member matched, so absent
+   * and `0` mean different things.
+   */
+  lead?: number;
 }

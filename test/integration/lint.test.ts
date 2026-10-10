@@ -6,7 +6,7 @@ describe.skipIf(!hasApiKey())("Lint (integration)", () => {
     const c = newClient();
     const t0 = Date.now();
     const res = await c.lint(
-      { query: 'MATCH DISTANCE("machine learning") WITHIN 0.4 LIMIT 5' },
+      { query: 'MATCH DISTANCE("machine learning") LIMIT 5' },
       { readTimeoutMs: REQUEST_TIMEOUT_MS },
     );
     console.log(`  Lint valid                   ${Date.now() - t0}ms`);
@@ -30,7 +30,7 @@ describe.skipIf(!hasApiKey())("Lint (integration)", () => {
     // Mirrors the spec example: cursor placed where the next token is
     // expected. The server must respond with at least one completion.
     const c = newClient();
-    const query = 'MATCH DISTANCE("climate change") WITHIN ';
+    const query = 'MATCH DISTANCE("climate change") ';
     const res = await c.lint(
       { query, cursor: query.length },
       { readTimeoutMs: REQUEST_TIMEOUT_MS },
@@ -45,7 +45,7 @@ describe.skipIf(!hasApiKey())("Lint (integration)", () => {
     // matches that. Verify the server accepts the same byte offset without
     // returning `invalid_request`.
     const c = newClient();
-    const query = 'MATCH DISTANCE("café") WITHIN ';
+    const query = 'MATCH DISTANCE("café") ';
     const byteLen = new TextEncoder().encode(query).byteLength;
     const res = await c.lint({ query, cursor: byteLen }, { readTimeoutMs: REQUEST_TIMEOUT_MS });
     // The exact validity of this partial query is server-defined — what we
@@ -63,7 +63,7 @@ describe.skipIf(!hasApiKey())("Lint (integration)", () => {
       baseUrl: "https://semantik.noetive.io",
     });
     const res = await c.lint(
-      { query: 'MATCH DISTANCE("x") WITHIN 0.5' },
+      { query: 'MATCH DISTANCE("x")' },
       { readTimeoutMs: REQUEST_TIMEOUT_MS },
     );
     expect(res.valid).toBe(true);

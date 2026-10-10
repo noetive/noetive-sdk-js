@@ -24,7 +24,7 @@ const policy =
 const client = new Client({ retryPolicy: policy });
 
 const res = await client.semantik.search({
-  query: 'MATCH DISTANCE("retry policy") WITHIN 0.5 LIMIT 1',
+  query: 'MATCH DISTANCE("retry policy") LIMIT 1',
   namespace: "global",
   model: "Qwen3-Embedding-4B",
   dimensions: 1024,

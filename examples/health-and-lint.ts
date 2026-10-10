@@ -16,7 +16,7 @@ await client.semantik.health();
 console.log("health: ok");
 
 const result = await client.semantik.lint({
-  query: 'MATCH DISTANCE("machine learning") WITHIN 0.4 LIMIT 5',
+  query: 'MATCH DISTANCE("machine learning") LIMIT 5',
 });
 console.log("lint.valid:", result.valid);
 console.log("lint.normalized:", result.normalized);

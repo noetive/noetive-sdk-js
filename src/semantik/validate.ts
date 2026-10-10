@@ -10,6 +10,7 @@
 
 import { preflightError } from "../errors.js";
 import {
+  MAX_GROUP_LEN,
   MAX_METADATA_KEYS,
   MAX_METADATA_KEY_LEN,
   MAX_METADATA_TOTAL_BYTES,
@@ -26,6 +27,8 @@ import type {
 } from "./models.js";
 
 const utf8 = new TextEncoder();
+
+const GROUP_ALPHABET = /^[A-Za-z0-9_-]+$/;
 
 /**
  * Reject strings containing lone surrogate halves — encoding such strings to
@@ -216,11 +219,29 @@ export function validateSearchRequest(req: SearchRequest): void {
   }
 }
 
+/**
+ * A subscription group name is 1..MAX_GROUP_LEN ASCII letters, digits, `-` or `_`.
+ * Checked only when the property is present; `undefined` means ungrouped.
+ */
+function validateGroup(group: string | undefined): void {
+  if (group === undefined) return;
+  if (typeof group !== "string" || group.length === 0) {
+    throw preflightError("subscribe group must not be empty");
+  }
+  if (group.length > MAX_GROUP_LEN) {
+    throw preflightError(`subscribe group exceeds ${MAX_GROUP_LEN} characters`);
+  }
+  if (!GROUP_ALPHABET.test(group)) {
+    throw preflightError("subscribe group may contain only ASCII letters, digits, '-' and '_'");
+  }
+}
+
 export function validateSubscribeRequest(req: SubscribeRequest): void {
   if (!req.query || req.query.length === 0) {
     throw preflightError("subscribe query must not be empty");
   }
   validateTarget(req.namespace, req.model, req.dimensions);
+  validateGroup(req.group);
 }
 
 export function validateLintRequest(req: LintRequest): void {

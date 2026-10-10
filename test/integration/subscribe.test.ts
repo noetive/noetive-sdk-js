@@ -16,7 +16,7 @@ describe.skipIf(!hasApiKey())("Subscribe (integration)", () => {
     const c = newClient();
     const stream = await c.subscribe(
       {
-        query: 'MATCH DISTANCE("mechanical engineering") WITHIN 0.6',
+        query: 'MATCH DISTANCE("mechanical engineering")',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,
@@ -50,7 +50,7 @@ describe.skipIf(!hasApiKey())("Subscribe (integration)", () => {
     const c = newClient();
     const stream = await c.subscribe(
       {
-        query: 'MATCH DISTANCE("x") WITHIN 0.5',
+        query: 'MATCH DISTANCE("x")',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,
@@ -67,7 +67,7 @@ describe.skipIf(!hasApiKey())("Subscribe (integration)", () => {
     const ac = new AbortController();
     const stream = await c.subscribe(
       {
-        query: 'MATCH DISTANCE("x") WITHIN 0.5',
+        query: 'MATCH DISTANCE("x")',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,
@@ -103,7 +103,7 @@ describe.skipIf(!hasApiKey())("Subscribe (integration)", () => {
     const c = newClient();
     const stream = await c.subscribe(
       {
-        query: 'MATCH DISTANCE("distributed consensus protocols") WITHIN 0.7',
+        query: 'MATCH DISTANCE("distributed consensus protocols")',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,
@@ -164,7 +164,7 @@ describe.skipIf(!hasApiKey())("Subscribe (integration)", () => {
     const c = newClient();
     const promise = c.subscribe(
       {
-        query: 'MATCH DISTANCE("x") WITHIN 0.5',
+        query: 'MATCH DISTANCE("x")',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,
@@ -188,7 +188,7 @@ describe.skipIf(!hasApiKey())("Subscribe (integration)", () => {
     {
       await using stream = await c.subscribe(
         {
-          query: 'MATCH DISTANCE("x") WITHIN 0.5',
+          query: 'MATCH DISTANCE("x")',
           namespace: TEST_NAMESPACE,
           model: TEST_MODEL,
           dimensions: TEST_DIMS,
@@ -207,7 +207,7 @@ describe.skipIf(!hasApiKey())("Subscribe (integration)", () => {
     const c = newClient();
     const stream = await c.subscribe(
       {
-        query: 'MATCH DISTANCE("x") WITHIN 0.5',
+        query: 'MATCH DISTANCE("x")',
         namespace: TEST_NAMESPACE,
         model: TEST_MODEL,
         dimensions: TEST_DIMS,

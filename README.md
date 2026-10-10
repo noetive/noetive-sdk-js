@@ -63,7 +63,7 @@ await noetive.semantik.publish({
 });
 
 const results = await noetive.semantik.search({
-  query: 'MATCH DISTANCE("machine learning") WITHIN 0.4 LIMIT 10',
+  query: 'MATCH DISTANCE("machine learning") LIMIT 10',
   namespace: "global",
   model: "Qwen3-Embedding-4B",
   dimensions: 1024,
@@ -80,7 +80,7 @@ import { Client } from "@noetive/sdk";
 
 const noetive = new Client();
 const stream = await noetive.semantik.subscribe({
-  query: 'MATCH DISTANCE("open-source model releases") WITHIN 0.5',
+  query: 'MATCH DISTANCE("open-source model releases")',
   namespace: "global",
   model: "Qwen3-Embedding-4B",
   dimensions: 1024,
@@ -109,6 +109,31 @@ for await (const match of stream) {
   // …
 }
 // stream.close() runs at scope exit.
+```
+
+### Message groups
+
+Subscriptions that name the same `group` (same account, same namespace) compete
+for messages: a message matching several members goes only to the best-scoring
+member, and on an exact tie to every tied member. Use groups to split one stream
+between roles. Group names are 1-64 characters of ASCII letters, digits, `-` and
+`_`; members must use the same kinds of clauses (and, for DISTANCE, the same
+metric) or the server answers `invalid_request`. Omit `group` to receive every
+match.
+
+```ts
+const triage = await noetive.semantik.subscribe({
+  query: 'MATCH DIRECTION("report an outage")',
+  namespace: "global",
+  model: "Qwen3-Embedding-4B",
+  dimensions: 1024,
+  group: "incident-roles",
+});
+for await (const match of triage) {
+  // `lead` is only set when another group member also matched: this score
+  // minus the best other member's score (0 is a tie, undefined is uncontested).
+  console.log(match.message_id, match.score, match.lead);
+}
 ```
 
 ### Semantik-only callers
@@ -296,7 +321,7 @@ body, response status, response headers, response body):
 
 ```bash
 NOETIVE_KEY_SECRET=<your-api-key> npx tsx tools/recorder.ts health
-NOETIVE_KEY_SECRET=<your-api-key> npx tsx tools/recorder.ts subscribe 'MATCH DISTANCE("x") WITHIN 0.5' 3
+NOETIVE_KEY_SECRET=<your-api-key> npx tsx tools/recorder.ts subscribe 'MATCH DISTANCE("x")' 3
 ```
 
 Attach the output to bug reports.
