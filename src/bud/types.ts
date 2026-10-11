@@ -232,7 +232,7 @@ export interface Me {
   readable_mailboxes?: string[];
   scopes?: string[];
   granted?: string[];
-  /** What is left of each sending budget. */
+  /** The mailbox's sending limits. What is left of them comes back on each send. */
   limits?: Record<string, number>;
   /** Whether mail sent from these addresses goes out now. */
   sending?: SendingStatus;

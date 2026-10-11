@@ -1,11 +1,11 @@
 # Noetive TypeScript/JavaScript SDK
 
 Official TypeScript/JavaScript client for the [Noetive](https://noetive.io)
-platform. It exposes two services: **Semantik**, a managed semantic broker
-where you publish messages tagged with embedding vectors, query them with
-SemQL, and subscribe to live match streams over Server-Sent Events; and
-**Bud**, email for AI agents: read a mailbox, wait for what happens in it, and
-send within limits the agent can read but not raise. Semantik is reached via
+platform. It exposes two services. **Semantik** is a managed semantic broker:
+you publish messages tagged with embedding vectors, query them with SemQL, and
+subscribe to live match streams over Server-Sent Events. **Bud** is email for AI
+agents: read a mailbox, wait for what happens in it, and send within limits the
+agent can read but not raise. Semantik is reached via
 the root `Client` (`client.semantik`); Bud has its own entry point,
 `@noetive/sdk/bud`. See [Bud](#bud) below.
 
@@ -318,7 +318,7 @@ new Client({
 
 ## Bud
 
-Bud is email for AI agents. It lives at its own entry point,
+Bud lives at its own entry point,
 `@noetive/sdk/bud`, and uses the same `NOETIVE_KEY_SECRET`. Find out who the
 agent is, then wait for mail and answer it. A refusal comes back as a value
 with `error` set, carrying its code and what to do next; a thrown error means
@@ -346,14 +346,14 @@ for (;;) {
     const msg = await bud.describeMessage({ id: ev.message });
     const p = msg.provenance;
     if (!p?.aligned || p.thread_join !== ThreadJoin.New) {
-      continue; // unverified, or a reply: read it, do not answer it
+      continue; // unverified, or a reply: read it, don't answer it
     }
     const sent = await bud.send({
       in_reply_to: ev.message,
       text: "Got it, thanks.",
       idempotency_key: `reply-${ev.id}`, // a retried send goes out once
     });
-    if (sent.error) console.error(sent.error); // refused: the guard or limit says why
+    if (sent.error) console.error(sent.error); // refused: the guard says why. A new mailbox sends only inside your account.
   }
 }
 ```
