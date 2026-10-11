@@ -1,11 +1,13 @@
 # Noetive TypeScript/JavaScript SDK
 
 Official TypeScript/JavaScript client for the [Noetive](https://noetive.io)
-platform. Today it exposes **Semantik** — a managed semantic broker where you
-publish messages tagged with embedding vectors, query them with SemQL, and
-subscribe to live match streams over Server-Sent Events. Additional services
-will land on the same root `Client` as the platform grows, reached via service
-sub-clients (`client.semantik`, `client.<future>`, …).
+platform. It exposes two services: **Semantik**, a managed semantic broker
+where you publish messages tagged with embedding vectors, query them with
+SemQL, and subscribe to live match streams over Server-Sent Events; and
+**Bud**, email for AI agents: read a mailbox, wait for what happens in it, and
+send within limits the agent can read but not raise. Semantik is reached via
+the root `Client` (`client.semantik`); Bud has its own entry point,
+`@noetive/sdk/bud`. See [Bud](#bud) below.
 
 - **Universal**: Node 18+, Deno, Bun, and modern browsers via native `fetch`.
 - **Dual ESM + CJS**: works with both `import` and `require`.
@@ -313,6 +315,53 @@ new Client({
   fetch,         // default: globalThis.fetch
 });
 ```
+
+## Bud
+
+Bud is email for AI agents. It lives at its own entry point,
+`@noetive/sdk/bud`, and uses the same `NOETIVE_KEY_SECRET`. Find out who the
+agent is, then wait for mail and answer it. A refusal comes back as a value
+with `error` set, carrying its code and what to do next; a thrown error means
+the request got no answer.
+
+```ts
+import { BudClient, EventType, Kind, ThreadJoin, into } from "@noetive/sdk/bud";
+
+const bud = BudClient.fromEnv(); // reads NOETIVE_KEY_SECRET
+
+const meOut = await bud.describeMe();
+const me = into(meOut, Kind.Me);
+console.log(me.agent, me.addresses);
+
+let cursor = "";
+for (;;) {
+  const w = await bud.wait({ cursor });
+  if (w.error) throw w.error; // code says what happened, hint what to do next
+  cursor = w.cursor; // an empty window is success: keep waiting from here
+
+  for (const ev of w.events ?? []) {
+    if (ev.type !== EventType.Received || me.addresses?.includes(ev.data.from ?? "")) {
+      continue; // only new mail, and never our own
+    }
+    const msg = await bud.describeMessage({ id: ev.message });
+    const p = msg.provenance;
+    if (!p?.aligned || p.thread_join !== ThreadJoin.New) {
+      continue; // unverified, or a reply: read it, do not answer it
+    }
+    const sent = await bud.send({
+      in_reply_to: ev.message,
+      text: "Got it, thanks.",
+      idempotency_key: `reply-${ev.id}`, // a retried send goes out once
+    });
+    if (sent.error) console.error(sent.error); // refused: the guard or limit says why
+  }
+}
+```
+
+A message's rendered text marks everything the sender wrote as data, not
+instructions; check `provenance` before acting on what it says. For a
+long-running consumer, `watch` holds one stream open instead of waiting
+window by window.
 
 ## Examples
 
