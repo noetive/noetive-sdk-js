@@ -21,6 +21,12 @@ export const BudErrorCodes = Object.freeze({
   Unauthorized: "unauthorized",
   /** The key is good and the account behind it cannot be charged. Retrying will not help until billing is set up. */
   NotBillable: "not_billable",
+  /** A spend cap on the organization, workspace or agent is reached (402, like `not_billable`). The payment method is not the problem: a person raises the cap, or its period ends. */
+  SpendCapReached: "spend_cap_reached",
+  /** The access token acts for a person rather than the agent, and no operation accepts that yet (403). A token minted for the agent itself works. */
+  ImpersonationNotSupported: "impersonation_not_supported",
+  /** A person has to approve this action first and the operation cannot wait for one (403). A send is never refused with this: it comes back `held`. */
+  ApprovalRequired: "approval_required",
   /**
    * The key is good and does not reach what was asked. Never returned for an
    * object the caller cannot read — that is `not_found`, because "forbidden"
@@ -38,6 +44,12 @@ export const BudErrorCodes = Object.freeze({
    * With no `retryAfterMs`, waiting will not help and the request has to change.
    */
   RateLimited: "rate_limited",
+  /**
+   * A usage quota for the period is used up (429, like `rate_limited`), but
+   * waiting seconds does not help: `counter` names the quota and `retryAfterMs`
+   * says when its window refills, which can be the rest of the period.
+   */
+  QuotaExceeded: "quota_exceeded",
   /** The mailbox is paused. Unlike a rate limit it does not clear on its own. */
   Paused: "paused",
   /** The request was malformed; `field` is a JSON pointer to where, when one field is to blame. */
@@ -48,6 +60,8 @@ export const BudErrorCodes = Object.freeze({
   Internal: "internal",
   /** Something Bud depends on could not be reached, and the request had no effect. Retry with backoff. */
   UpstreamUnavailable: "upstream_unavailable",
+  /** The policy that governs this caller could not be applied, so nothing was done (503). Retry with backoff. */
+  PolicyUnavailable: "policy_unavailable",
   /**
    * This SDK's own: the server answered with something that is not the
    * envelope. Distinct from `internal` so a caller can tell "the server failed"
@@ -141,16 +155,22 @@ export class BudError extends Error {
   /**
    * Whether waiting and trying again could succeed.
    *
-   * True for `upstream_unavailable` (the server promises no effect),
-   * `precondition_failed` (after reading the object again), `internal` (retry a
-   * send after it only with the same idempotency key), and `rate_limited` only
-   * when it says how long to wait. Everything else is false — notably
-   * `unavailable` (this deployment does not serve it), `paused` (clears only
-   * when an operator releases it) and `not_billable` (waits on a person).
+   * True for `upstream_unavailable` and `policy_unavailable` (the server
+   * promises no effect), `precondition_failed` (after reading the object
+   * again), `internal` (retry a send after it only with the same idempotency
+   * key), and `rate_limited` only when it says how long to wait. Everything
+   * else is false — notably `unavailable` (this deployment does not serve it),
+   * `paused` (clears only when an operator releases it), `not_billable` and
+   * `spend_cap_reached` (wait on a person), `approval_required` and
+   * `impersonation_not_supported` (need a person or a different token), and
+   * `quota_exceeded`, which refills only when its window does, possibly the
+   * rest of the period: `retryAfterMs` says when, and whether to wait that long
+   * is the caller's decision, not a retry loop's.
    */
   retryable(): boolean {
     switch (this.code) {
       case BudErrorCodes.UpstreamUnavailable:
+      case BudErrorCodes.PolicyUnavailable:
       case BudErrorCodes.PreconditionFailed:
       case BudErrorCodes.Internal:
         return true;

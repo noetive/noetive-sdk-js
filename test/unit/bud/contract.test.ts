@@ -112,7 +112,7 @@ const provenance: Required<Provenance> = {
   dkim: "pass",
   dmarc: "pass",
   aligned: true,
-  in_tenant: true,
+  in_workspace: true,
   known: true,
   thread_join: "verified",
   folder: "inbox",
@@ -123,7 +123,7 @@ const eventData: Required<EventData> = {
   from: "a@b.example",
   subject: "s",
   aligned: true,
-  in_tenant: true,
+  in_workspace: true,
   known: true,
   agent_part: true,
   folder: "inbox",
@@ -136,7 +136,7 @@ const eventData: Required<EventData> = {
 };
 const event: Required<JournalEvent> = {
   id: "journal_01x",
-  tenant: "tenant_01x",
+  workspace: "workspace_01x",
   ts: "2026-01-02T03:04:05Z",
   seq: 42,
   type: "mail.received",
@@ -155,7 +155,7 @@ const summary: Required<Summary> = {
   from: "a@b.example",
   from_name: "A",
   aligned: true,
-  in_tenant: true,
+  in_workspace: true,
   known: true,
   join: "new",
   attachments: 1,
@@ -255,6 +255,7 @@ const cases: Record<string, Case> = {
       message: "message_01x",
       thread: "thread_01x",
       state: "queued",
+      approval_id: "appr_01x",
       reason: "provisioning",
       remaining: { per_hour: 29 },
       error: refusal,
@@ -267,7 +268,7 @@ const cases: Record<string, Case> = {
   },
   Provenance: {
     full: encodeJSON(provenance),
-    minimal: encodeJSON({ aligned: false, in_tenant: false, known: false } satisfies Provenance),
+    minimal: encodeJSON({ aligned: false, in_workspace: false, known: false } satisfies Provenance),
   },
   Effect: {
     full: encodeJSON({ kind: "labelled", count: 1, ref: "message_01x" } satisfies Required<Effect>),
@@ -277,7 +278,7 @@ const cases: Record<string, Case> = {
     full: encodeJSON(event),
     minimal: encodeJSON({
       id: "",
-      tenant: "",
+      workspace: "",
       ts: "",
       seq: 0,
       type: "",
@@ -299,7 +300,7 @@ const cases: Record<string, Case> = {
   Me: {
     full: encodeJSON({
       agent: "ag_01x",
-      tenant: "tenant_01x",
+      workspace: "workspace_01x",
       kind: "agent",
       name: "n",
       addresses: ["a@b.example"],
@@ -310,7 +311,7 @@ const cases: Record<string, Case> = {
       limits: { per_hour: 30 },
       sending: { status: "ready" },
     } satisfies Required<Me>),
-    minimal: encodeJSON({ agent: "", tenant: "" } satisfies Me),
+    minimal: encodeJSON({ agent: "", workspace: "" } satisfies Me),
   },
   Listing: {
     full: encodeJSON({
@@ -333,7 +334,7 @@ const cases: Record<string, Case> = {
       message: "",
       date: "",
       aligned: false,
-      in_tenant: false,
+      in_workspace: false,
       known: false,
     } satisfies Summary),
   },

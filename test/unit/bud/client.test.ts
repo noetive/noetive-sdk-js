@@ -73,6 +73,41 @@ describe("a refusal is a value", () => {
     expect(BudError.is(out.error, BudErrorCodes.UpstreamUnavailable)).toBe(false);
   });
 
+  // The new refusals must decode by their own code and carry the status the
+  // server answered with, so a caller can branch on them.
+  it("decodes the codes a policy or a cap adds", async () => {
+    for (const [code, status] of [
+      ["spend_cap_reached", 402],
+      ["impersonation_not_supported", 403],
+      ["approval_required", 403],
+      ["quota_exceeded", 429],
+      ["policy_unavailable", 503],
+    ] as const) {
+      const srv = refusingServer(status, `{"error":{"code":"${code}","message":"no"}}`);
+      const out = await budClient(srv.fetch, { retry: new NoRetry() }).describeMe();
+      expect(BudError.is(out.error, code)).toBe(true);
+      expect(out.error?.httpStatus).toBe(status);
+    }
+  });
+
+  // A held send is an answer, not a failure: reading it as one and sending again
+  // would make a second message. It must decode held with its approval.
+  it("a held send decodes its approval_id", async () => {
+    const srv = fakeFetch(() =>
+      answer(
+        '{"message":"message_01x","thread":"thread_01x","state":"held","approval_id":"appr_01x"}',
+      ),
+    );
+    const out = await budClient(srv.fetch).send({
+      to: ["ada@example.com"],
+      text: "hi",
+      idempotency_key: "k1",
+    });
+    expect(out.error).toBeUndefined();
+    expect(out.state).toBe(SendState.Held);
+    expect(out.approval_id).toBe("appr_01x");
+  });
+
   it("serialises back to the wire shape, so a relay can forward the output as sent", async () => {
     const body =
       '{"ref":"message_01x","error":{"code":"rate_limited","message":"spent","counter":"per_hour","retry_after_ms":1000,"request_id":"request_01b"}}';

@@ -10,6 +10,7 @@ import {
   BudErrorCodes,
   Kind,
   PartMode,
+  Prefix,
   type ReadOutput,
   SendingState,
   carriesSenderContent,
@@ -42,7 +43,7 @@ describe("the typed views read what the server sends", () => {
     const srv = readServer({
       "/v1/mailbox.describe":
         '{"ref":"ag_01x","kind":"mailbox","content":{"mailbox":"ag_01x",' +
-        '"folders":{"inbox":3},"sending":{"status":"provisioning","reason":"domain verifying"}}}',
+        '"addresses":["ada@agents.example.com"],"folders":{"inbox":3},"sending":{"status":"provisioning","reason":"domain verifying"}}}',
       "/v1/correspondent.list":
         '{"ref":"ag_01x/corr","kind":"corr","content":{"mailbox":"ag_01x",' +
         '"correspondents":[{"addr":"ada@example.com","first_seen":"2026-01-02T03:04:05Z",' +
@@ -54,6 +55,7 @@ describe("the typed views read what the server sends", () => {
     const c = budClient(srv.fetch);
 
     const mv = into(await c.describeMailbox({ id: "ag_01x" }), Kind.Mailbox);
+    expect(mv.addresses).toEqual(["ada@agents.example.com"]);
     expect(mv.folders?.inbox).toBe(3);
     expect(mv.sending?.status).toBe(SendingState.Provisioning);
 
@@ -73,6 +75,27 @@ describe("the typed views read what the server sends", () => {
     const err = thrown(() => into(part, Kind.Mailbox));
     expect(BudError.is(err, BudErrorCodes.Invalid)).toBe(true);
     expect((err as BudError).httpStatus).toBe(0);
+  });
+
+  // Pins the fields renamed from tenant: a client still reading the old names
+  // would see an empty workspace and every sender as outside it, with no error.
+  it("health, me and a folder listing read workspace and in_workspace", async () => {
+    const srv = readServer({
+      "/v1/health": '{"contract":"bud/v1","agent":"ag_01x","workspace":"workspace_01x"}',
+      "/v1/me.describe":
+        '{"ref":"me","kind":"me","content":{"agent":"ag_01x","workspace":"workspace_01x"}}',
+      "/v1/folder.list":
+        '{"ref":"ag_01x/inbox","kind":"folder","content":{"mailbox":"ag_01x","folder":"inbox",' +
+        '"messages":[{"message":"message_01x","date":"2026-01-02T03:04:05Z","aligned":true,"in_workspace":true,"known":true}]}}',
+    });
+    const c = budClient(srv.fetch);
+
+    const h = await c.health();
+    expect(h.workspace).toBe("workspace_01x");
+    expect(h.workspace?.startsWith(Prefix.Workspace)).toBe(true);
+    expect(into(await c.describeMe(), Kind.Me).workspace).toBe("workspace_01x");
+    const l = into(await c.listFolder({ in: "ag_01x" }), Kind.Folder);
+    expect(l.messages?.[0]?.in_workspace).toBe(true);
   });
 
   it("a parts reading lists the numbers describePart takes, nested parts included", () => {

@@ -40,7 +40,10 @@ describe.skipIf(!hasBudKey())("Bud (integration)", () => {
     answered("health", h.error);
     expect(h.contract).toBe(CONTRACT_VERSION);
     expect(h.agent).toBe(me.agent);
-    expect(h.tenant).toBe(me.tenant);
+    // Both empty would also be equal, which is what a client reading a field the
+    // server renamed sees, so the workspace has to be there at all.
+    expect(h.workspace?.startsWith(Prefix.Workspace), `health workspace ${h.workspace}`).toBe(true);
+    expect(h.workspace).toBe(me.workspace);
   });
 
   it("the catalog serves every operation this client calls", async () => {

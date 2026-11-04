@@ -319,13 +319,15 @@ new Client({
 ## Bud
 
 Bud lives at its own entry point,
-`@noetive/sdk/bud`, and uses the same `NOETIVE_KEY_SECRET`. Find out who the
+`@noetive/sdk/bud`, and uses the same `NOETIVE_KEY_SECRET`. An access token
+the Noetive access service signed works in place of the key; its scope can
+narrow what the agent may do and never widen it. Find out who the
 agent is, then wait for mail and answer it. A refusal comes back as a value
 with `error` set, carrying its code and what to do next; a thrown error means
 the request got no answer.
 
 ```ts
-import { BudClient, EventType, Kind, ThreadJoin, into } from "@noetive/sdk/bud";
+import { BudClient, EventType, Kind, SendState, ThreadJoin, into } from "@noetive/sdk/bud";
 
 const bud = BudClient.fromEnv(); // reads NOETIVE_KEY_SECRET
 
@@ -353,7 +355,11 @@ for (;;) {
       text: "Got it, thanks.",
       idempotency_key: `reply-${ev.id}`, // a retried send goes out once
     });
-    if (sent.error) console.error(sent.error); // refused: the guard says why. A new mailbox sends only inside your account.
+    if (sent.error) {
+      console.error(sent.error); // refused: the guard says why. A new mailbox sends only inside your account.
+    } else if (sent.state === SendState.Held) {
+      console.log("held for", sent.approval_id); // a person decides; do not resend
+    }
   }
 }
 ```

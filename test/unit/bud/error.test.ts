@@ -45,6 +45,13 @@ describe("retryable follows the server's advice", () => {
     [BudErrorCodes.UpstreamUnavailable, true],
     [BudErrorCodes.PreconditionFailed, true],
     [BudErrorCodes.Internal, true],
+    // Nothing was done; the policy was not applied.
+    [BudErrorCodes.PolicyUnavailable, true],
+    // A person raises the cap, approves, or mints a token for the agent: not a clock.
+    [BudErrorCodes.SpendCapReached, false],
+    [BudErrorCodes.ImpersonationNotSupported, false],
+    [BudErrorCodes.ApprovalRequired, false],
+    [BudErrorCodes.QuotaExceeded, false],
     [BudErrorCodes.Paused, false],
     [BudErrorCodes.NotBillable, false],
     [BudErrorCodes.Unavailable, false],
@@ -62,8 +69,16 @@ describe("retryable follows the server's advice", () => {
     });
   }
 
-  it("covers all thirteen codes", () => {
+  it("covers every code", () => {
     expect(new Set(table.map(([c]) => c))).toEqual(new Set(Object.values(BudErrorCodes)));
+  });
+
+  // A quota refills with its period, so even a stated wait is the caller's call
+  // rather than a retry loop's: unlike rate_limited, a wait does not make it
+  // retryable.
+  it("a used-up quota stays non-retryable even when it says when it refills", () => {
+    const e = new BudError({ code: "quota_exceeded", message: "", retry_after_ms: 1000 });
+    expect(e.retryable()).toBe(false);
   });
 
   it("a rate limit is worth waiting out exactly when the server says how long", () => {

@@ -61,7 +61,7 @@ export interface Provenance {
   dmarc?: string;
   /** The one to branch on: the authenticated domain and the visible From agree. */
   aligned: boolean;
-  in_tenant: boolean;
+  in_workspace: boolean;
   known: boolean;
   /** How the message joined its conversation; see `ThreadJoin`. */
   thread_join?: string;
@@ -108,7 +108,13 @@ export interface SendInput {
   cc?: string[];
   bcc?: string[];
   from?: string;
-  /** Needs a grant, and this server refuses it: nothing here can confirm a person decided that message. */
+  /**
+   * Writes as another agent. It needs a send-on-behalf grant from that agent's
+   * owner, the organization's permission to send on behalf, and a From domain
+   * verified for the workspace; without all three the send is refused as
+   * `policy_refused`. The message names both, with the sending agent as Sender,
+   * so a recipient sees who wrote it and who it is from.
+   */
   on_behalf_of?: string;
   in_reply_to?: string;
   reply_all?: boolean;
@@ -129,13 +135,23 @@ export interface SendInput {
 }
 
 /**
- * What a send returns. A new send is `queued`; a repeat with the same
- * idempotency key reports the message's state now.
+ * What a send returns. Three outcomes are normal and distinguishable: the
+ * message is `queued`; or it is `held` because a rule of the workspace's policy
+ * needs a person to approve it first, and `approval_id` names the approval; or
+ * the send is refused (`error`, `policy_refused` with `guard` naming the rule).
+ * A repeat with the same idempotency key reports the message's state now.
  */
 export interface SendOutput {
   message?: string;
   thread?: string;
   state?: string;
+  /**
+   * The approval a `held` message waits on. Absent until the request for
+   * approval has been filed, which happens in the background; the message is
+   * held either way, and only a person can release it. Never send a held
+   * message again: a second send is a second message.
+   */
+  approval_id?: string;
   /** Why a queued message waits ("provisioning", "paused"), or why a repeated one failed. */
   reason?: string;
   /** What is left of each sending limit after this message. */
@@ -174,7 +190,7 @@ export interface WaitOutput {
 /** One thing that happened. Delivery is at least once: dedupe on `id`. */
 export interface JournalEvent {
   id: string;
-  tenant: string;
+  workspace: string;
   /** RFC 3339. */
   ts: string;
   /** Orders events within a mailbox. A uint64 on the wire; compare, do not do arithmetic. */
@@ -205,7 +221,7 @@ export interface EventData {
   from?: string;
   subject?: string;
   aligned?: boolean;
-  in_tenant?: boolean;
+  in_workspace?: boolean;
   known?: boolean;
   agent_part?: boolean;
   folder?: string;
@@ -222,7 +238,7 @@ export interface EventData {
 /** Who the caller is and what it can reach — where every other identifier comes from. */
 export interface Me {
   agent: string;
-  tenant: string;
+  workspace: string;
   kind?: string;
   name?: string;
   /** What this agent sends as. The first is the default. */
@@ -261,7 +277,7 @@ export interface Summary {
   from?: string;
   from_name?: string;
   aligned: boolean;
-  in_tenant: boolean;
+  in_workspace: boolean;
   known: boolean;
   join?: string;
   attachments?: number;
@@ -289,6 +305,8 @@ export interface SendingStatus {
 /** A mailbox's own state. Content for kind `mailbox`. */
 export interface MailboxView {
   mailbox: string;
+  /** What this mailbox sends as. The first is the default. */
+  addresses?: string[];
   /** An operator stopped this mailbox sending; `reason` says why. */
   paused?: boolean;
   reason?: string;
@@ -360,7 +378,7 @@ export interface PartInfo {
 export interface Health {
   contract?: string;
   agent?: string;
-  tenant?: string;
+  workspace?: string;
   /** A key reaching no agent here is forbidden_scope; only unauthorized means the key itself does not work. */
   error?: BudError;
 }

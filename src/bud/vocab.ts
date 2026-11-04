@@ -21,9 +21,15 @@ export const SendState = Object.freeze({
   Bounced: "bounced",
   /** It could not be handed on; `reason` says why. */
   Failed: "failed",
-  /** Can appear on older messages. Nothing is held. */
+  /**
+   * A rule of the workspace's policy needs a person to approve the message
+   * before it goes; `SendOutput.approval_id` names the approval. It becomes
+   * `queued` when approved and `rejected` when a person refuses it or the wait
+   * lapses. Nothing a caller sends releases it, so never send it again: that is
+   * a second message, held in its turn.
+   */
   Held: "held",
-  /** Can appear on older messages. */
+  /** A person refused a held message, or the wait lapsed. */
   Rejected: "rejected",
 } as const);
 
@@ -35,6 +41,12 @@ export const EventType = Object.freeze({
   Quarantined: "mail.quarantined",
   /** A send accepted. */
   Queued: "mail.queued",
+  /** A send held for a person to approve. */
+  Held: "mail.held",
+  /** A held send released by a person. */
+  Approved: "mail.approved",
+  /** A held send refused by a person or lapsed; the sending budget is given back. */
+  Rejected: "mail.rejected",
   /** Handed to the provider. Carries the Message-ID recipients see in `data.message_id`. */
   Sent: "mail.sent",
   /** Accepted by the receiving side. */
@@ -121,7 +133,7 @@ export const Kind = Object.freeze({
  * than a pair that could disagree.
  */
 export const Prefix = Object.freeze({
-  Tenant: "tenant_",
+  Workspace: "workspace_",
   Agent: "ag_",
   Message: "message_",
   Thread: "thread_",

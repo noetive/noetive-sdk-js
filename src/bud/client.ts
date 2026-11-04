@@ -163,7 +163,11 @@ export class BudClient {
   readonly #credential: Credential;
   readonly #baseUrl: string;
 
-  /** A client that carries one Noetive key (keya_...). */
+  /**
+   * A client that carries one Noetive key (keya_...). An access token the
+   * Noetive access service signed works in its place; its scope can narrow what
+   * the agent may do and never widen it.
+   */
   constructor(opts: BudClientOptions & { apiKey: string });
   constructor(opts: BudClientOptions & { forwarding: true });
   constructor(opts: BudClientOptions & ({ apiKey: string } | { forwarding: true })) {
@@ -307,8 +311,22 @@ export class BudClient {
   }
 
   /**
-   * Compose and send. The server queues the message or refuses it, naming the
-   * guard. Pass an idempotency key on every send: without one a retried
+   * Compose and send. Three outcomes are normal and distinguishable. The
+   * message is `queued`. Or it is `held`, because a rule of the workspace's
+   * policy needs a person to approve it first: `approval_id` names the approval,
+   * the message goes out when a person approves it and never otherwise, and its
+   * sending budget is spent until it is rejected or lapses. Do not send a held
+   * message again; nothing a caller sends releases it, and a second send is a
+   * second message. Or it is refused as `policy_refused` with `guard` naming
+   * the rule that fired.
+   *
+   * ```ts
+   * const sent = await bud.send({ to: ["ada@example.com"], text: "hi", idempotency_key: "k1" });
+   * if (sent.error) console.error(sent.error.guard);
+   * else if (sent.state === SendState.Held) console.log("held for", sent.approval_id);
+   * ```
+   *
+   * Pass an idempotency key on every send: without one a retried
    * timeout is a second message, and this SDK never retries a send without one.
    */
   async send(input: SendInput, options?: CallOptions): Promise<SendOutput> {
