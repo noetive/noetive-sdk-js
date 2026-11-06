@@ -29,6 +29,7 @@ import { wireBody } from "./request.js";
 import { type RetryPolicy, TransientRetry } from "./retry.js";
 import { BudTransport, DEFAULT_RESPONSE_TIMEOUT_MS, readText } from "./transport.js";
 import {
+  type AddressbookQuery,
   type Catalog,
   type Health,
   type PutOutput,
@@ -294,6 +295,19 @@ export class BudClient {
   async listCorrespondents(input: In, options?: CallOptions): Promise<ReadOutput> {
     requireId(input.in, Prefix.Agent, "listCorrespondents");
     return this.call("correspondent.list", input, options);
+  }
+
+  /**
+   * The workspace's agents and their addresses; takes `q`, `limit` and
+   * `cursor`. Read it with `into(out, Kind.Addressbook)`. An empty page is an
+   * answer, not a failure. Needs the agent to hold the `book` scope, else the
+   * refusal is `forbidden_scope`.
+   */
+  async describeAddressbook(
+    input: AddressbookQuery = {},
+    options?: CallOptions,
+  ): Promise<ReadOutput> {
+    return this.call("addressbook.describe", input, options);
   }
 
   /**

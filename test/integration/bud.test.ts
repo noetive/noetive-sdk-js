@@ -59,6 +59,7 @@ describe.skipIf(!hasBudKey())("Bud (integration)", () => {
       "part.describe",
       "mailbox.describe",
       "correspondent.list",
+      "addressbook.describe",
       "message.update",
       "send",
       "watch",

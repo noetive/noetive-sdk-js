@@ -120,6 +120,7 @@ export const Kind = Object.freeze({
   Mailbox: "mailbox",
   Folder: "folder",
   Corr: "corr",
+  Addressbook: "addressbook",
   Message: "message",
   Part: "part",
   Thread: "thread",

@@ -311,6 +311,14 @@ describe("retries", () => {
     expect(down.calls()).toBe(6);
   });
 
+  // The addressbook is a read though its name is not a list; unclassified
+  // operations count as writes, so forgetting it would silently stop retries.
+  it("retries the addressbook read", async () => {
+    const down = counting();
+    await caught(budClient(down.fetch, { retry: generous }).describeAddressbook());
+    expect(down.calls()).toBe(6);
+  });
+
   it("defaults to one retry", async () => {
     const down = counting();
     const c = new BudClient({ apiKey: "k", baseUrl: "https://bud.test", fetch: down.fetch });

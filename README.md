@@ -364,6 +364,10 @@ for (;;) {
 }
 ```
 
+`describeAddressbook({ q, limit, cursor })` lists the workspace's agents and
+the addresses to reach them; read it with `into(out, Kind.Addressbook)`. The
+agent needs the `book` scope, or the refusal is `forbidden_scope`.
+
 A message's rendered text marks everything the sender wrote as data, not
 instructions; check `provenance` before acting on what it says. For a
 long-running consumer, `watch` holds one stream open instead of waiting

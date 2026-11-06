@@ -77,6 +77,41 @@ describe("the typed views read what the server sends", () => {
     expect((err as BudError).httpStatus).toBe(0);
   });
 
+  // Covers the addressbook view end to end: the request carries q and cursor
+  // and no `in` (the book is the workspace's, not a mailbox's), the content
+  // decodes with self/addresses/receive_only, the page cursor survives, and a
+  // part is refused as an addressbook. Without it a book could be read as an
+  // empty one or its next page lost.
+  it("the addressbook, with its paging and a wrong-kind refusal", async () => {
+    const srv = readServer({
+      "/v1/addressbook.describe":
+        '{"ref":"addressbook","kind":"addressbook","content":{"workspace":"workspace_01x",' +
+        '"entries":[{"agent":"ag_01x","name":"Ada","kind":"assistant","addresses":["ada@agents.example.com"],' +
+        '"receive_only":["help@agents.example.com"],"self":true}]},"truncated":true,"cursor":"ag_01x"}',
+      "/v1/part.describe":
+        '{"ref":"message_01x/part/2","kind":"part","content":{"message":"message_01x",' +
+        '"part":"2","mode":"text","type":"text/plain","text":"hi"}}',
+    });
+    const c = budClient(srv.fetch);
+    const out = await c.describeAddressbook({ q: "ada", cursor: "ag_00x" });
+    expect(srv.received[0]?.path).toBe("/v1/addressbook.describe");
+    expect(srv.received[0]?.body).toEqual({ q: "ada", cursor: "ag_00x" });
+    expect(srv.received[0]?.body).not.toHaveProperty("in");
+
+    const bv = into(out, Kind.Addressbook);
+    expect(bv.workspace).toBe("workspace_01x");
+    expect(bv.entries).toHaveLength(1);
+    expect(bv.entries?.[0]?.self).toBe(true);
+    expect(bv.entries?.[0]?.addresses[0]).toBe("ada@agents.example.com");
+    expect(bv.entries?.[0]?.receive_only).toEqual(["help@agents.example.com"]);
+    expect(out.cursor).toBe("ag_01x");
+    expect(out.truncated).toBe(true);
+
+    const part = await c.describePart({ id: "message_01x", part: "2" });
+    const err = thrown(() => into(part, Kind.Addressbook));
+    expect(BudError.is(err, BudErrorCodes.Invalid)).toBe(true);
+  });
+
   // Pins the fields renamed from tenant: a client still reading the old names
   // would see an empty workspace and every sender as outside it, with no error.
   it("health, me and a folder listing read workspace and in_workspace", async () => {

@@ -96,6 +96,7 @@ export function writes(op: string): boolean {
     case "part.describe":
     case "mailbox.describe":
     case "correspondent.list":
+    case "addressbook.describe":
     case "help.describe":
     case "watch":
       return false;

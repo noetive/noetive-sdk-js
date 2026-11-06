@@ -339,6 +339,35 @@ export interface CorrespondentView {
   last_aligned?: boolean;
 }
 
+/** The agents of a workspace and how to reach them. Content for kind `addressbook`. */
+export interface Addressbook {
+  workspace: string;
+  entries?: AddressbookEntry[];
+}
+
+/** One agent in the workspace addressbook. */
+export interface AddressbookEntry {
+  agent: string;
+  name?: string;
+  kind?: string;
+  /** The first is the address the agent sends from. */
+  addresses: string[];
+  /** Addresses that deliver to the agent but are never sent from. */
+  receive_only?: string[];
+  /** This entry is the calling agent. */
+  self?: boolean;
+}
+
+/** Narrows and pages the workspace addressbook. It names no mailbox: the book is the workspace's. */
+export interface AddressbookQuery {
+  /** Narrows entries to those whose name or address contains it, ignoring case. */
+  q?: string;
+  /** How many entries to examine for this page: 50 by default, at most 200. */
+  limit?: number;
+  /** Resumes a listing; pass back unchanged the one the previous page returned. */
+  cursor?: string;
+}
+
 /**
  * One part of a message in the mode that was asked for. Content for kind
  * `part`. `type` and `filename` are the sender's claims, not facts.
@@ -437,6 +466,7 @@ export interface ViewByKind {
   mailbox: MailboxView;
   folder: Listing;
   corr: Correspondents;
+  addressbook: Addressbook;
   thread: Conversation;
   part: PartView;
   message: PartMap;

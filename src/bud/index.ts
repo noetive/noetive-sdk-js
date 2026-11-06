@@ -57,6 +57,9 @@ export {
 export { DEFAULT_RESPONSE_TIMEOUT_MS } from "./transport.js";
 export {
   type Actor,
+  type Addressbook,
+  type AddressbookEntry,
+  type AddressbookQuery,
   CONTRACT_VERSION,
   type Catalog,
   type CatalogKind,
