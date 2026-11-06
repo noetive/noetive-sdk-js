@@ -71,9 +71,9 @@ describe("the SSE frame bound", () => {
 
   it("applies the byte count to a line still waiting for its terminator", async () => {
     // No line break at all: the tail alone is over the cap in bytes.
-    await expect(drain(body(`data: ${"é".repeat((MAX_FRAME_BYTES * 5) / 8)}`))).rejects.toBeInstanceOf(
-      MalformedSseError,
-    );
+    await expect(
+      drain(body(`data: ${"é".repeat((MAX_FRAME_BYTES * 5) / 8)}`)),
+    ).rejects.toBeInstanceOf(MalformedSseError);
   });
 });
 
