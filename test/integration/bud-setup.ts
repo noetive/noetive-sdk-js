@@ -24,6 +24,7 @@ import {
   type Summary,
   into,
 } from "../../src/bud/index.js";
+import { pacedFetch } from "./paced.js";
 
 export const BUD_PROD_BASE_URL = "https://bud.noetive.io";
 
@@ -48,7 +49,7 @@ export function call(): { signal: AbortSignal } {
  * middle of every test that follows.
  */
 export async function setup(): Promise<{ c: BudClient; me: Me }> {
-  const c = new BudClient({ apiKey: budKey(), baseUrl: BUD_PROD_BASE_URL });
+  const c = new BudClient({ apiKey: budKey(), baseUrl: BUD_PROD_BASE_URL, fetch: pacedFetch() });
   const out = await c.describeMe(call());
   if (out.error) {
     throw new Error(
