@@ -108,7 +108,11 @@ export interface ByID {
 export interface In {
   /** The mailbox, by its agent's identifier. */
   in: string;
-  /** `Folder.Inbox` (the default), `Folder.Sent` or `Folder.Quarantine`. */
+  /**
+   * `Folder.Inbox` (the default), `Folder.Sent`, `Folder.Quarantine` or a folder
+   * the mailbox made. One it does not have is refused as `not_found` rather than
+   * listed empty.
+   */
   folder?: string;
   /** Only unread messages. */
   unread?: boolean;
@@ -137,6 +141,8 @@ export interface MessageChanges {
   read?: boolean;
   /** Replaces the message's labels whole, so an empty list removes them all. */
   labels?: string[];
+  /** Moves the message to `Folder.Inbox`, `Folder.Quarantine` or a folder the mailbox made; see `moveMessage`. */
+  folder?: string;
 }
 
 /**
@@ -147,6 +153,25 @@ export interface Change {
   id: string;
   changes: MessageChanges;
   /** Remembered best-effort for up to an hour; reusing one for a different change is refused as invalid. */
+  idempotency_key?: string;
+}
+
+/** Files a message in another folder of its mailbox, for `moveMessage`. */
+export interface Move {
+  id: string;
+  /** `Folder.Inbox`, `Folder.Quarantine` or a folder the mailbox made. */
+  folder: string;
+  /** Remembered best-effort for up to an hour; reusing one for a different change is refused as invalid. */
+  idempotency_key?: string;
+}
+
+/** Names one folder of one mailbox, for `createFolder` and `deleteFolder`. */
+export interface FolderWrite {
+  /** The mailbox, by its agent's identifier. */
+  in: string;
+  /** The folder's name: lowercase letters, digits and hyphens, at most 48 characters, and not one of the system folders. */
+  folder: string;
+  /** Remembered best-effort for up to an hour. */
   idempotency_key?: string;
 }
 
@@ -311,10 +336,11 @@ export class BudClient {
   }
 
   /**
-   * Mark a message read or unread, or replace its labels. A
-   * `precondition_failed` means other label writes kept landing first; the
-   * request is safe to repeat as it was. Retried on a failed connection only
-   * with an idempotency key.
+   * Mark a message read or unread, replace its labels, or move it to another
+   * folder. A `precondition_failed` means other writes kept landing first, or
+   * the message is still being delivered; the hint says which. A change earlier
+   * in the same request may already have applied; the request is safe to repeat
+   * as it was. Retried on a failed connection only with an idempotency key.
    */
   async updateMessage(input: Change, options?: CallOptions): Promise<PutOutput> {
     requireId(input.id, Prefix.Message, "updateMessage");
@@ -322,6 +348,57 @@ export class BudClient {
       throw preflight(BudErrorCodes.Invalid, "updateMessage needs changes");
     }
     return this.call("message.update", input, options);
+  }
+
+  /**
+   * File a received message in another folder of its mailbox. It is
+   * `updateMessage` with only a folder change.
+   *
+   * Received mail moves between `Folder.Inbox`, `Folder.Quarantine` and the
+   * folders made with `createFolder`; sent mail stays in `Folder.Sent` and a
+   * move of it is refused as `invalid`. A folder the mailbox does not have is
+   * `not_found`. Moving a message where it already is reports no effect. Moving
+   * out of quarantine changes where the message is filed, not how it was
+   * authenticated: replying to it is still refused.
+   *
+   * ```ts
+   * const out = await bud.moveMessage({ id: "message_01j...", folder: "receipts" });
+   * ```
+   */
+  async moveMessage(input: Move, options?: CallOptions): Promise<PutOutput> {
+    if (!input.folder) throw preflight(BudErrorCodes.Invalid, "moveMessage needs a folder");
+    const { folder, ...rest } = input;
+    return this.updateMessage({ ...rest, changes: { folder } }, options);
+  }
+
+  /**
+   * Make a folder in a mailbox to file mail in. Making one that already exists
+   * reports no effect, so the call is safe to repeat. A mailbox has at most 32
+   * folders of its own; past that the call is refused as `precondition_failed`
+   * until one is removed. Only the mailbox's own agent can make or remove its
+   * folders.
+   *
+   * ```ts
+   * const out = await bud.createFolder({ in: "ag_01j...", folder: "receipts" });
+   * ```
+   */
+  async createFolder(input: FolderWrite, options?: CallOptions): Promise<PutOutput> {
+    requireFolder(input, "createFolder");
+    return this.call("folder.create", input, options);
+  }
+
+  /**
+   * Remove an empty folder the mailbox made. One that still holds mail is
+   * refused as `precondition_failed` and nothing changes: move its mail
+   * elsewhere first. Removing one that is already gone reports no effect.
+   *
+   * ```ts
+   * const out = await bud.deleteFolder({ in: "ag_01j...", folder: "receipts" });
+   * ```
+   */
+  async deleteFolder(input: FolderWrite, options?: CallOptions): Promise<PutOutput> {
+    requireFolder(input, "deleteFolder");
+    return this.call("folder.delete", input, options);
   }
 
   /**
@@ -458,6 +535,12 @@ function requireId(id: string | undefined, prefix: string, op: string): void {
       `${op} needs an identifier beginning ${JSON.stringify(prefix)}, got ${JSON.stringify(firstPrefix(id))}`,
     );
   }
+}
+
+/** The mailbox must be an agent's and the folder named, before a round trip is spent. */
+function requireFolder(input: FolderWrite, op: string): void {
+  requireId(input.in, Prefix.Agent, op);
+  if (!input.folder) throw preflight(BudErrorCodes.Invalid, `${op} needs a folder`);
 }
 
 /** An identifier up to and including its underscore, so a refusal names what arrived without quoting all of it. */

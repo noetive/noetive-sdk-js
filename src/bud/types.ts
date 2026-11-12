@@ -86,7 +86,7 @@ export interface PutOutput {
   /** Declared by the wire and not sent. */
   version?: string;
   created?: boolean;
-  /** What the write changed; see `EffectKind`. */
+  /** What the write changed; see `EffectKind`. Empty when the write asked for what was already true. */
   effects?: Effect[];
   error?: BudError;
 }

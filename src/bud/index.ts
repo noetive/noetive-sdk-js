@@ -42,9 +42,11 @@ export {
   DEFAULT_BASE_URL,
   ENV_BASE_URL,
   ENV_KEY,
+  type FolderWrite,
   type In,
   MAX_RESPONSE_BYTES,
   type MessageChanges,
+  type Move,
 } from "./client.js";
 export { BudError, type BudErrorBody, type BudErrorCode, BudErrorCodes } from "./error.js";
 export {

@@ -1,6 +1,6 @@
 {
   "name": "@noetive/sdk",
-  "version": "0.2.0",
+  "version": "0.3.0",
   "description": "Official TypeScript/JavaScript SDK for the Noetive platform: Semantik (semantic publish, search and subscribe) and Bud (email for AI agents).",
   "license": "Apache-2.0",
   "author": {

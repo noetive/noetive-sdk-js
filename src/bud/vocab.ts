@@ -57,6 +57,8 @@ export const EventType = Object.freeze({
   Complained: "mail.complained",
   /** A message marked read or unread. */
   Read: "mail.read",
+  /** A message its agent filed in another folder. `data.folder` is where it went; on `Received` and `Quarantined` it is where the message arrived. */
+  Moved: "mail.moved",
   /** A rendering was withheld as unsafe and a degraded one shown instead. */
   RenderFailed: "render.failed",
 } as const);
@@ -68,7 +70,13 @@ export const ActorKind = Object.freeze({
   Operator: "operator",
 } as const);
 
-/** The folders `In.folder` names. `inbox` is the default. */
+/**
+ * The system folders, which always exist. `In.folder` names one of these or a
+ * folder the mailbox made with `createFolder`: lowercase letters, digits and
+ * hyphens, at most 48 characters. `inbox` is the default. Received mail moves
+ * between inbox, quarantine and the mailbox's own folders; sent mail stays in
+ * `sent`.
+ */
 export const Folder = Object.freeze({
   Inbox: "inbox",
   Sent: "sent",
@@ -148,6 +156,12 @@ export const EffectKind = Object.freeze({
   MailRead: "mail.read",
   /** A message whose labels were set. */
   Labelled: "labelled",
+  /** A message filed in another folder. */
+  Moved: "moved",
+  /** A folder made. A call that changed nothing reports neither this nor `FolderDeleted`. */
+  FolderCreated: "folder.created",
+  /** A folder removed. */
+  FolderDeleted: "folder.deleted",
 } as const);
 
 /**

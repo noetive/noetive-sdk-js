@@ -24,6 +24,8 @@ const IN: WireShape = { always: { in: "" } };
 
 const SHAPES: Record<string, WireShape> = {
   "folder.list": IN,
+  "folder.create": IN,
+  "folder.delete": IN,
   "correspondent.list": IN,
   "message.describe": ID,
   "thread.describe": ID,
